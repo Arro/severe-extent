@@ -1,0 +1,32 @@
+{
+  "name": "severe-extent",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "babel src --out-dir dist"
+  },
+  "license": "MIT",
+  "description": "Lambda stuff",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arro/severe-extent.git"
+  },
+  "main": "dist/index.js",
+  "devDependencies": {
+    "@babel/cli": "^7.12.10",
+    "@babel/core": "^7.12.10",
+    "@babel/preset-env": "^7.12.11",
+    "babel-eslint": "^10.1.0",
+    "eslint": "^7.17.0",
+    "eslint-plugin-babel": "^5.3.1",
+    "prettier": "^2.2.1"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.824.0",
+    "core-js": "^3.8.2",
+    "fs-extra": "^9.0.1",
+    "ora": "^5.2.0"
+  },
+  "peerDependencies": {
+    "@babel/cli": "^7.x"
+  }
+}
