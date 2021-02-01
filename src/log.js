@@ -11,6 +11,8 @@ export default function (message, type) {
       spinner.start(message)
     } else if (type === "end") {
       spinner.succeed(message)
+    } else if (type === "error") {
+      spinner.fail(message)
     } else {
       spinner.info(message)
     }

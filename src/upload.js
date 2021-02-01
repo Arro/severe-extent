@@ -31,6 +31,7 @@ export default async function ({
       throw new Error(`You didn't include ${key} in upload_env`)
     }
   }
+
   AWS.config.update({
     accessKeyId: upload_env.aws_access_key_id,
     secretAccessId: upload_env.aws_secret_access_key,

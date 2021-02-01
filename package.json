@@ -1,6 +1,6 @@
 {
   "name": "severe-extent",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "scripts": {
     "build": "babel src --out-dir dist"
   },
@@ -23,10 +23,14 @@
   "dependencies": {
     "aws-sdk": "^2.824.0",
     "core-js": "^3.8.2",
+    "dotenv": "^8.2.0",
     "fs-extra": "^9.0.1",
     "ora": "^5.2.0"
   },
   "peerDependencies": {
     "@babel/cli": "^7.x"
+  },
+  "bin": {
+    "severe": "dist/cli.js"
   }
 }
