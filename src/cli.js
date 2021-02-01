@@ -81,7 +81,13 @@ dotenv.config()
   }
 
   if (args[1] === "run") {
-    log("run")
+    let { handler } = json[args[0]]
+    let func_name = "default"
+    if (handler.indexOf(".") !== -1) {
+      ;[handler, func_name] = handler.split(".")
+    }
+
+    log(`would be running func ${handler}.${func_name} but not implemented yet`)
     return
   }
 })()
