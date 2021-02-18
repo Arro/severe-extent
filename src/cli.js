@@ -65,7 +65,8 @@ dotenv.config()
       exe_env,
       runtime,
       eventbridge_rule,
-      role
+      role,
+      layer
     } = json[args[0]]
 
     let upload_env_map = {}
@@ -91,7 +92,8 @@ dotenv.config()
       exe_env,
       runtime,
       eventbridge_rule,
-      role
+      role,
+      layer
     })
     return
   }

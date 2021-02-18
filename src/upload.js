@@ -21,7 +21,8 @@ export default async function ({
   exe_env,
   runtime,
   role,
-  eventbridge_rule
+  eventbridge_rule,
+  layer
 }) {
   const req_keys = [
     "aws_access_key_id",
@@ -139,6 +140,7 @@ export default async function ({
         Handler: handler,
         Timeout: timeout,
         MemorySize: memory_size,
+        Layers: layer ? [layer] : [],
         Environment: {
           Variables: {
             ...exe_env
@@ -168,6 +170,7 @@ export default async function ({
         Handler: handler,
         Timeout: timeout,
         MemorySize: memory_size,
+        Layers: layer ? [layer] : [],
         Role: role,
         Environment: {
           Variables: {
