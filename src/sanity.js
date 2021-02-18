@@ -9,7 +9,8 @@ export default async function (json) {
       "src_files",
       "handler",
       "upload_env",
-      "exe_env"
+      "exe_env",
+      "runtime"
     ]
     let is_valid = true
     for (const prop of necessary_props) {

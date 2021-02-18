@@ -2,6 +2,7 @@
 import fs from "fs-extra"
 import sanity from "./sanity"
 import log from "./log"
+import info from "./info"
 import upload from "./upload"
 import dotenv from "dotenv"
 
@@ -35,6 +36,15 @@ dotenv.config()
     return
   }
 
+  if (
+    invalid_keys.find((k) => {
+      return k === args[0]
+    })
+  ) {
+    log("The function you provided has an invalid config", "error")
+    return
+  }
+
   if (args?.length === 1) {
     log(`You can run \`severe ${args[0]} upload\``)
     log(`You can run \`severe ${args[0]} run\``)
@@ -52,7 +62,10 @@ dotenv.config()
       timeout,
       memory_size,
       upload_env,
-      exe_env
+      exe_env,
+      runtime,
+      eventbridge_rule,
+      role
     } = json[args[0]]
 
     let upload_env_map = {}
@@ -75,9 +88,27 @@ dotenv.config()
       timeout,
       memory_size,
       upload_env,
-      exe_env
+      exe_env,
+      runtime,
+      eventbridge_rule,
+      role
     })
     return
+  }
+
+  if (args[1] === "info") {
+    let { function_name, upload_env } = json[args[0]]
+
+    let upload_env_map = {}
+    upload_env.forEach((key) => {
+      upload_env_map[key] = process.env[key]
+    })
+    upload_env = upload_env_map
+
+    await info({
+      function_name,
+      upload_env
+    })
   }
 
   if (args[1] === "run") {
