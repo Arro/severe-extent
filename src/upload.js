@@ -21,7 +21,7 @@ export default async function ({
   exe_env,
   runtime,
   role,
-  eventbridge_rule,
+  schedule,
   layer
 }) {
   const req_keys = [
@@ -182,34 +182,90 @@ export default async function ({
     log("updated lambda because it already existed", "end")
   }
 
-  if (eventbridge_rule) {
-    log("associationg eventbridge rule", "start")
-
+  if (schedule) {
+    log("fetching lambda function info again", "start")
     const latest_function_info = await lambda
       .getFunction({
         FunctionName: function_name
       })
       .promise()
+    log("fetched lambda function info again", "end")
+
+    let expression
+    let event_name
+    if (schedule.how_often === "hourly") {
+      expression = `cron(${schedule.at_minute} * ? * * *)`
+      event_name = `hourly_at_${schedule.at_minute}`
+    } else if (schedule.how_often === "daily") {
+      expression = `cron(${schedule.at_minute} ${schedule.at_hour} ? * * *)`
+      event_name = `daily_at_${schedule.at_hour}_${schedule.at_minute}`
+    }
 
     var eventbridge = new AWS.EventBridge({ apiVersion: "2015-10-07" })
-    const buses = await eventbridge.listEventBuses({}).promise()
-    const bus = buses?.EventBuses?.find((b) => {
-      return b.Name === "default"
-    })
 
+    log("removing old schedules", "start")
+    let { RuleNames: old_rules } = await eventbridge
+      .listRuleNamesByTarget({
+        TargetArn: latest_function_info?.Configuration?.FunctionArn
+      })
+      .promise()
+
+    for (const old_rule of old_rules) {
+      const { Targets: all_targets_of_old_rule } = await eventbridge
+        .listTargetsByRule({
+          Rule: old_rule
+        })
+        .promise()
+
+      const targets = all_targets_of_old_rule.filter((t) => {
+        return t.Arn === latest_function_info?.Configuration?.FunctionArn
+      })
+      eventbridge
+        .removeTargets({
+          Ids: targets.map((t) => t.Id),
+          Rule: old_rule
+        })
+        .promise()
+    }
+    log("removed old schedules", "end")
+
+    log("adding new rule", "start")
+    const new_rule = await eventbridge
+      .putRule({
+        Name: event_name,
+        ScheduleExpression: expression
+      })
+      .promise()
+    log("added new rule", "end")
+
+    log("granting permissions for rule", "start")
+    try {
+      await lambda
+        .addPermission({
+          Action: "lambda:InvokeFunction",
+          FunctionName: function_name,
+          Principal: "events.amazonaws.com",
+          StatementId: `${event_name}__${function_name}`,
+          SourceArn: new_rule.Arn
+        })
+        .promise()
+    } catch (e) {
+      // it's ok
+    }
+    log("granted permissions for rule", "end")
+
+    log("associating rule with function", "start")
     await eventbridge
       .putTargets({
-        EventBusName: bus.Arn,
-        Rule: eventbridge_rule,
+        Rule: event_name,
         Targets: [
           {
             Arn: latest_function_info.Configuration.FunctionArn,
-            Id: eventbridge_rule
+            Id: "1"
           }
         ]
       })
       .promise()
-
-    log("associationg eventbridge rule", "end")
+    log("associated rule with function", "end")
   }
 }

@@ -64,7 +64,7 @@ dotenv.config()
       upload_env,
       exe_env,
       runtime,
-      eventbridge_rule,
+      schedule,
       role,
       layer
     } = json[args[0]]
@@ -91,7 +91,7 @@ dotenv.config()
       upload_env,
       exe_env,
       runtime,
-      eventbridge_rule,
+      schedule,
       role,
       layer
     })
