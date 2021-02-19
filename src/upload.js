@@ -21,7 +21,7 @@ export default async function ({
   exe_env,
   runtime,
   role,
-  schedule,
+  schedule = [],
   layer,
   deps
 }) {
@@ -204,61 +204,61 @@ export default async function ({
     log("updated lambda because it already existed", "end")
   }
 
-  if (schedule) {
-    log("fetching lambda function info again", "start")
-    const latest_function_info = await lambda
-      .getFunction({
-        FunctionName: function_name
+  log("fetching lambda function info again", "start")
+  const latest_function_info = await lambda
+    .getFunction({
+      FunctionName: function_name
+    })
+    .promise()
+  log("fetched lambda function info again", "end")
+
+  var eventbridge = new AWS.EventBridge({ apiVersion: "2015-10-07" })
+
+  log("removing old schedules", "start")
+  let { RuleNames: old_rules } = await eventbridge
+    .listRuleNamesByTarget({
+      TargetArn: latest_function_info?.Configuration?.FunctionArn
+    })
+    .promise()
+
+  for (const old_rule of old_rules) {
+    const { Targets: all_targets_of_old_rule } = await eventbridge
+      .listTargetsByRule({
+        Rule: old_rule
       })
       .promise()
-    log("fetched lambda function info again", "end")
 
+    const targets = all_targets_of_old_rule.filter((t) => {
+      return t.Arn === latest_function_info?.Configuration?.FunctionArn
+    })
+    eventbridge
+      .removeTargets({
+        Ids: targets.map((t) => t.Id),
+        Rule: old_rule
+      })
+      .promise()
+  }
+  log("removed old schedules", "end")
+
+  for (const s of schedule) {
     let expression
     let event_name
-    if (schedule.how_often === "hourly") {
-      expression = `cron(${schedule.at_minute} * ? * * *)`
-      event_name = `hourly_at_${schedule.at_minute}`
-    } else if (schedule.how_often === "daily") {
-      expression = `cron(${schedule.at_minute} ${schedule.at_hour} ? * * *)`
-      event_name = `daily_at_${schedule.at_hour}_${schedule.at_minute}`
+    if (s.how_often === "hourly") {
+      expression = `cron(${s.at_minute} * ? * * *)`
+      event_name = `hourly_at_${s.at_minute}`
+    } else if (s.how_often === "daily") {
+      expression = `cron(${s.at_minute} ${s.at_hour} ? * * *)`
+      event_name = `daily_at_${s.at_hour}_${s.at_minute}`
     }
 
-    var eventbridge = new AWS.EventBridge({ apiVersion: "2015-10-07" })
-
-    log("removing old schedules", "start")
-    let { RuleNames: old_rules } = await eventbridge
-      .listRuleNamesByTarget({
-        TargetArn: latest_function_info?.Configuration?.FunctionArn
-      })
-      .promise()
-
-    for (const old_rule of old_rules) {
-      const { Targets: all_targets_of_old_rule } = await eventbridge
-        .listTargetsByRule({
-          Rule: old_rule
-        })
-        .promise()
-
-      const targets = all_targets_of_old_rule.filter((t) => {
-        return t.Arn === latest_function_info?.Configuration?.FunctionArn
-      })
-      eventbridge
-        .removeTargets({
-          Ids: targets.map((t) => t.Id),
-          Rule: old_rule
-        })
-        .promise()
-    }
-    log("removed old schedules", "end")
-
-    log("adding new rule", "start")
+    log(`adding new rule ${event_name}`, "start")
     const new_rule = await eventbridge
       .putRule({
         Name: event_name,
         ScheduleExpression: expression
       })
       .promise()
-    log("added new rule", "end")
+    log(`adding new rule ${event_name}`, "end")
 
     log("granting permissions for rule", "start")
     try {
