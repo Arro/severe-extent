@@ -66,7 +66,8 @@ dotenv.config()
       runtime,
       schedule,
       role,
-      layer
+      layer,
+      deps
     } = json[args[0]]
 
     let upload_env_map = {}
@@ -93,7 +94,8 @@ dotenv.config()
       runtime,
       schedule,
       role,
-      layer
+      layer,
+      deps
     })
     return
   }

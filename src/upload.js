@@ -22,7 +22,8 @@ export default async function ({
   runtime,
   role,
   schedule,
-  layer
+  layer,
+  deps
 }) {
   const req_keys = [
     "aws_access_key_id",
@@ -95,30 +96,51 @@ export default async function ({
   }
   log("copied static files", "end")
 
-  log("copying package.json", "start")
-  await fs.copy("package.json", path.join(build_path, "package.json"))
-  log("copied package.json", "end")
+  if (runtime.indexOf("node") !== -1) {
+    log("copying package.json", "start")
+    await fs.copy("package.json", path.join(build_path, "package.json"))
+    log("copied package.json", "end")
 
-  log("installing node.js packages", "start")
-  await exec("npm install --production --no-package-lock", {
-    cwd: build_path
-  })
-  log("installed node.js packages", "end")
+    log("installing node.js packages", "start")
+    await exec("npm install --production --no-package-lock", {
+      cwd: build_path
+    })
+    log("installed node.js packages", "end")
 
-  log("generating src files with babel", "start")
-  for (const src_file of src_files) {
-    await exec(`npx babel src/${src_file}.js --out-dir ${build_path}`)
+    log("generating src files with babel", "start")
+    for (const src_file of src_files) {
+      await exec(`npx babel src/${src_file}.js --out-dir ${build_path}`)
+    }
+    log(`generated ${src_files.length} src files with babel`, "end")
+
+    log("zipping up build folder", "start")
+    await exec(`zip -r ${zip_filename} .`, {
+      cwd: build_path
+    })
+    log("zipping up build folder", "end")
+  } else if (runtime.indexOf("python") !== -1) {
+    const venv_path = path.join(os.tmpdir(), `${function_name}_venv`)
+    await exec(`python3 -m venv ${venv_path}`)
+    for (const dep of deps) {
+      log(`installing python dep ${dep}`, "start")
+      await exec(`source ${venv_path}/bin/activate && pip3 install ${dep}`)
+      log(`installed python dep ${dep}`, "end")
+    }
+
+    log("zipping up python deps", "start")
+    await exec(`zip -r ${zip_filename} .`, {
+      cwd: `${venv_path}/lib/python3.9/site-packages`
+    })
+    log("zipping up python deps", "end")
+
+    for (const src_file of src_files) {
+      await exec(`zip -g  ${zip_filename} ./${src_file}.py`)
+    }
+  } else {
+    throw new Error("Non-supported runtime")
   }
-  log(`generated ${src_files.length} src files with babel`, "end")
-
-  log("zipping up build folder", "start")
-  await exec(`zip -r ${zip_filename} .`, {
-    cwd: build_path
-  })
-  log("zipping up build folder", "end")
 
   log("uploading zip to s3", "start")
-
   const S3 = new AWS.S3({
     apiVersion: "2006-03-01"
   })
