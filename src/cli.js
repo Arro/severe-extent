@@ -4,6 +4,7 @@ import sanity from "./sanity"
 import log from "./log"
 import info from "./info"
 import upload from "./upload"
+import invoke from "./invoke"
 import dotenv from "dotenv"
 
 dotenv.config()
@@ -110,6 +111,21 @@ dotenv.config()
     upload_env = upload_env_map
 
     await info({
+      function_name,
+      upload_env
+    })
+  }
+
+  if (args[1] === "invoke") {
+    let { function_name, upload_env } = json[args[0]]
+
+    let upload_env_map = {}
+    upload_env.forEach((key) => {
+      upload_env_map[key] = process.env[key]
+    })
+    upload_env = upload_env_map
+
+    await invoke({
       function_name,
       upload_env
     })
