@@ -134,7 +134,7 @@ export default async function ({
     log("zipping up python deps", "end")
 
     for (const src_file of src_files) {
-      await exec(`zip -g  ${zip_filename} ./${src_file}.py`)
+      await exec(`zip -g  ${zip_filename} ./pysrc/${src_file}.py`)
     }
   } else {
     throw new Error("Non-supported runtime")
