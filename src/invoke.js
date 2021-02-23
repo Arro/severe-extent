@@ -33,7 +33,8 @@ export default async function ({ function_name, upload_env }) {
       })
       .promise()
   } catch (e) {
-    log("lambda function doesn't exist on AWS", "error")
+    log("There was an error while invoking", "error")
+    console.log(e)
     return
   }
   log(`Invoked ${function_name}`, "end")

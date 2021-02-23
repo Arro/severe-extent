@@ -23,7 +23,7 @@ export default async function ({
   role,
   schedule = [],
   layer,
-  deps
+  deps = []
 }) {
   const req_keys = [
     "aws_access_key_id",
@@ -97,15 +97,13 @@ export default async function ({
   log("copied static files", "end")
 
   if (runtime.indexOf("node") !== -1) {
-    log("copying package.json", "start")
-    await fs.copy("package.json", path.join(build_path, "package.json"))
-    log("copied package.json", "end")
-
-    log("installing node.js packages", "start")
-    await exec("npm install --production --no-package-lock", {
-      cwd: build_path
-    })
-    log("installed node.js packages", "end")
+    for (const dep of deps) {
+      log(`installing nodejs dep ${dep}`, "start")
+      await exec(`npm install --no-package-lock --prefix ./ ${dep}`, {
+        cwd: build_path
+      })
+      log(`installed nodejs dep ${dep}`, "end")
+    }
 
     log("generating src files with babel", "start")
     for (const src_file of src_files) {
