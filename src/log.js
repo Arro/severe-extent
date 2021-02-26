@@ -21,6 +21,8 @@ export default function (message, type) {
       console.log("⋯ " + message)
     } else if (type === "end") {
       console.log("✔ " + message)
+    } else if (type === "error") {
+      console.log("✗ " + message)
     } else {
       console.log("ℹ " + message)
     }
