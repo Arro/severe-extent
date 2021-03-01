@@ -1,6 +1,6 @@
 {
   "name": "severe-extent",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "scripts": {
     "build": "babel src --out-dir dist"
   },

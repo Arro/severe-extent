@@ -84,10 +84,12 @@ export default async function ({
 
   const build_path = path.join(os.tmpdir(), `${function_name}_build/`)
   const zip_filename = path.join(os.tmpdir(), `${function_name}.zip`)
+  const venv_path = path.join(os.tmpdir(), `${function_name}_venv`)
 
   log(`cleaning up old folders`, "start")
   await fs.remove(build_path)
   await fs.remove(zip_filename)
+  await fs.remove(venv_path)
   log(`cleaning up old folders`, "end")
 
   log(`making build path at ${build_path}`, "start")
@@ -122,7 +124,6 @@ export default async function ({
     })
     log("zipping up build folder", "end")
   } else if (runtime.indexOf("python") !== -1) {
-    const venv_path = path.join(os.tmpdir(), `${function_name}_venv`)
     await exec(`python3 -m venv ${venv_path}`)
     for (const dep of deps) {
       log(`installing python dep ${dep}`, "start")
