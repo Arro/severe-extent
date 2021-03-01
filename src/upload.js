@@ -85,6 +85,11 @@ export default async function ({
   const build_path = path.join(os.tmpdir(), `${function_name}_build/`)
   const zip_filename = path.join(os.tmpdir(), `${function_name}.zip`)
 
+  log(`cleaning up old folders`, "start")
+  await fs.remove(build_path)
+  await fs.remove(zip_filename)
+  log(`cleaning up old folders`, "end")
+
   log(`making build path at ${build_path}`, "start")
   await fs.mkdirp(build_path)
   log(`made build path at ${build_path}`, "end")
@@ -132,7 +137,11 @@ export default async function ({
     log("zipping up python deps", "end")
 
     for (const src_file of src_files) {
-      await exec(`zip -g  ${zip_filename} ./pysrc/${src_file}.py`)
+      log(`adding python file ${src_file} to zip`, "start")
+      await exec(`zip -g  ${zip_filename} ${src_file}.py`, {
+        cwd: "./pysrc"
+      })
+      log(`added python file ${src_file} to zip`, "end")
     }
   } else {
     throw new Error("Non-supported runtime")
