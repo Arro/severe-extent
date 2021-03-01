@@ -8,7 +8,7 @@ module.exports = {
   parserOptions: {},
   rules: {
     semi: ["error", "never", { beforeStatementContinuationChars: "always" }],
-    "no-extra-semi": off
+    "no-extra-semi": "off"
   },
   plugins: ["babel"]
 }

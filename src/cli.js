@@ -47,8 +47,9 @@ dotenv.config()
   }
 
   if (args?.length === 1) {
+    log(`You can run \`severe ${args[0]} info\``)
     log(`You can run \`severe ${args[0]} upload\``)
-    log(`You can run \`severe ${args[0]} run\``)
+    log(`You can run \`severe ${args[0]} invoke\``)
     return
   }
 
@@ -129,16 +130,5 @@ dotenv.config()
       function_name,
       upload_env
     })
-  }
-
-  if (args[1] === "run") {
-    let { handler } = json[args[0]]
-    let func_name = "default"
-    if (handler.indexOf(".") !== -1) {
-      ;[handler, func_name] = handler.split(".")
-    }
-
-    log(`would be running func ${handler}.${func_name} but not implemented yet`)
-    return
   }
 })()
