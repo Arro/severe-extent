@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import fs from "fs-extra"
 import sanity from "./sanity"
 import log from "./log"
 import info from "./info"
@@ -9,13 +8,13 @@ import dotenv from "dotenv"
 
 dotenv.config()
 ;(async function () {
-  const filename = ".severe-extent.json"
+  const filename = `${process.cwd()}/.severe-extent.js`
   let json
   try {
-    json = await fs.readFile(filename, "utf-8")
-    json = JSON.parse(json)
+    json = require(filename)
   } catch (error) {
-    log("Couldn't find (and/or read) a valid `.severe-extent.json` file.")
+    console.log(error)
+    log("Couldn't find (and/or read) a valid `.severe-extent.js` file.")
     return
   }
 
@@ -30,7 +29,7 @@ dotenv.config()
 
     if (invalid_keys.length) {
       log(
-        `Found keys '${valid_keys.join("', '")}' but the info was invalid`,
+        `Found keys '${invalid_keys.join("', '")}' but the info was invalid`,
         "error"
       )
     }
@@ -63,7 +62,6 @@ dotenv.config()
       statics,
       timeout,
       memory_size,
-      upload_env,
       exe_env,
       runtime,
       schedule,
@@ -73,14 +71,29 @@ dotenv.config()
     } = json[args[0]]
 
     let upload_env_map = {}
+
+    let upload_env = [
+      "aws_access_key_id",
+      "aws_secret_access_key",
+      "aws_region",
+      "aws_s3_bucket"
+    ]
     upload_env.forEach((key) => {
-      upload_env_map[key] = process.env[key]
+      const value = process.env?.[key]
+      if (!value) {
+        throw new Error(`You're missing an upload_env : ${key}`)
+      }
+      upload_env_map[key] = value
     })
     upload_env = upload_env_map
 
     let exe_env_map = {}
     exe_env.forEach((key) => {
-      exe_env_map[key] = process.env[key]
+      const value = process.env?.[key]
+      if (!value) {
+        throw new Error(`You're missing an exe_env : ${key}`)
+      }
+      exe_env_map[key] = value
     })
     exe_env = exe_env_map
 
@@ -103,7 +116,14 @@ dotenv.config()
   }
 
   if (args[1] === "info") {
-    let { function_name, upload_env } = json[args[0]]
+    let { function_name } = json[args[0]]
+
+    let upload_env = [
+      "aws_access_key_id",
+      "aws_secret_access_key",
+      "aws_region",
+      "aws_s3_bucket"
+    ]
 
     let upload_env_map = {}
     upload_env.forEach((key) => {
@@ -118,7 +138,14 @@ dotenv.config()
   }
 
   if (args[1] === "invoke") {
-    let { function_name, upload_env } = json[args[0]]
+    let { function_name } = json[args[0]]
+
+    let upload_env = [
+      "aws_access_key_id",
+      "aws_secret_access_key",
+      "aws_region",
+      "aws_s3_bucket"
+    ]
 
     let upload_env_map = {}
     upload_env.forEach((key) => {

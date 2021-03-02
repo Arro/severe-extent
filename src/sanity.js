@@ -4,14 +4,7 @@ export default async function (json) {
 
   for (const lambda_key in json) {
     const lambda_data = json[lambda_key]
-    const necessary_props = [
-      "function_name",
-      "src_files",
-      "handler",
-      "upload_env",
-      "exe_env",
-      "runtime"
-    ]
+    const necessary_props = ["function_name", "src_files", "handler", "runtime"]
     let is_valid = true
     for (const prop of necessary_props) {
       if (!lambda_data?.[prop]?.length) {

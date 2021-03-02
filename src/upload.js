@@ -25,18 +25,6 @@ export default async function ({
   layer,
   deps = []
 }) {
-  const req_keys = [
-    "aws_access_key_id",
-    "aws_secret_access_key",
-    "aws_region",
-    "aws_s3_bucket"
-  ]
-  for (const key of req_keys) {
-    if (!upload_env[key]) {
-      throw new Error(`You didn't include ${key} in upload_env`)
-    }
-  }
-
   AWS.config.update({
     accessKeyId: upload_env.aws_access_key_id,
     secretAccessId: upload_env.aws_secret_access_key,
@@ -173,7 +161,8 @@ export default async function ({
         Layers: layer ? [layer] : [],
         Environment: {
           Variables: {
-            ...exe_env
+            ...exe_env,
+            ...upload_env
           }
         },
         Code: {
@@ -204,7 +193,8 @@ export default async function ({
         Role: role,
         Environment: {
           Variables: {
-            ...exe_env
+            ...exe_env,
+            ...upload_env
           }
         }
       })
