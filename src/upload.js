@@ -92,6 +92,15 @@ export default async function ({
   log("copied static files", "end")
 
   if (runtime.indexOf("node") !== -1) {
+    deps = [
+      ...deps,
+      "aws-sdk",
+      "core-js",
+      "dotenv",
+      "fs-extra",
+      "severe-extent"
+    ]
+
     for (const dep of deps) {
       log(`installing nodejs dep ${dep}`, "start")
       await exec(`npm install --no-package-lock --prefix ./ ${dep}`, {

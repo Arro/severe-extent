@@ -1,6 +1,6 @@
 {
   "name": "severe-extent",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "scripts": {
     "build": "babel src --out-dir dist"
   },
@@ -13,16 +13,16 @@
   "main": "dist/index.js",
   "devDependencies": {
     "@babel/cli": "^7.12.10",
-    "@babel/core": "^7.12.17",
-    "@babel/preset-env": "^7.12.17",
+    "@babel/core": "^7.13.8",
+    "@babel/preset-env": "^7.13.9",
     "babel-eslint": "^10.1.0",
-    "eslint": "^7.20.0",
+    "eslint": "^7.21.0",
     "eslint-plugin-babel": "^5.3.1",
     "prettier": "^2.2.1"
   },
   "dependencies": {
-    "aws-sdk": "^2.847.0",
-    "core-js": "^3.9.0",
+    "aws-sdk": "^2.856.0",
+    "core-js": "^3.9.1",
     "dotenv": "^8.2.0",
     "fs-extra": "^9.1.0",
     "ora": "^5.3.0"
