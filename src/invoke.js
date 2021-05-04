@@ -27,11 +27,13 @@ export default async function ({ function_name, upload_env }) {
 
   log(`Invoking ${function_name}`, "start")
   try {
-    await lambda
-      .invoke({
-        FunctionName: function_name
+    const data = await lambda
+      .invokeAsync({
+        FunctionName: function_name,
+        InvokeArgs: "{}"
       })
       .promise()
+    console.log(data)
   } catch (e) {
     log("There was an error while invoking", "error")
     console.log(e)
