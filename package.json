@@ -1,8 +1,8 @@
 {
   "name": "severe-extent",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "scripts": {
-    "build": "babel src --out-dir dist && npm link && chmod +x dist/cli.js"
+    "build": "babel-cli src --out-dir dist && npm link && chmod +x dist/cli.js"
   },
   "license": "MIT",
   "description": "Lambda stuff",
@@ -13,19 +13,19 @@
   "main": "dist/index.js",
   "devDependencies": {
     "@babel/cli": "^7.12.10",
-    "@babel/core": "^7.14.0",
-    "@babel/preset-env": "^7.14.0",
+    "@babel/core": "^7.14.5",
+    "@babel/preset-env": "^7.14.5",
     "babel-eslint": "^10.1.0",
-    "eslint": "^7.25.0",
+    "eslint": "^7.28.0",
     "eslint-plugin-babel": "^5.3.1",
-    "prettier": "^2.2.1"
+    "prettier": "^2.3.1"
   },
   "dependencies": {
-    "aws-sdk": "^2.899.0",
-    "core-js": "^3.11.2",
-    "dotenv": "^8.2.0",
+    "aws-sdk": "^2.927.0",
+    "core-js": "^3.14.0",
+    "dotenv": "^10.0.0",
     "fs-extra": "^10.0.0",
-    "ora": "^5.4.0"
+    "ora": "^5.4.1"
   },
   "peerDependencies": {
     "@babel/cli": "^7.x"
