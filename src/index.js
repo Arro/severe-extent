@@ -1,6 +1,6 @@
-import _upload from "./upload"
-import _log from "./log"
-import _sanity from "./sanity"
+import _upload from "./upload.js"
+import _log from "./log.js"
+import _sanity from "./sanity.js"
 
 export async function upload(args) {
   return await _upload(args)

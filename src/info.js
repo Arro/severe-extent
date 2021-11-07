@@ -1,6 +1,6 @@
 import AWS from "aws-sdk"
 
-import log from "./log"
+import log from "./log.js"
 
 export default async function ({ function_name, upload_env }) {
   const req_keys = [
@@ -57,7 +57,7 @@ export default async function ({ function_name, upload_env }) {
     .promise()
   log("pulled eventbridge rules from AWS", "end")
 
-  for (const rule_name of rules?.RuleNames) {
+  for (const rule_name of rules?.RuleNames ?? []) {
     const rule = await eventbridge
       .describeRule({
         EventBusName: bus.Arn,

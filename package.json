@@ -1,6 +1,6 @@
 {
   "name": "severe-extent",
-  "version": "1.6.4",
+  "version": "1.7.0",
   "scripts": {
     "build": "npx babel src --out-dir dist && npm link && chmod +x dist/cli.js"
   },
@@ -10,22 +10,22 @@
     "type": "git",
     "url": "git+https://github.com/Arro/severe-extent.git"
   },
+  "type": "module",
   "main": "dist/index.js",
   "devDependencies": {
     "@babel/cli": "^7.12.10",
-    "@babel/core": "^7.14.6",
-    "@babel/preset-env": "^7.14.5",
-    "babel-eslint": "^10.1.0",
-    "eslint": "^7.29.0",
-    "eslint-plugin-babel": "^5.3.1",
-    "prettier": "^2.3.1"
+    "@babel/core": "^7.16.0",
+    "@babel/eslint-parser": "^7.16.0",
+    "@babel/preset-env": "^7.16.0",
+    "eslint": "^8.2.0",
+    "prettier": "^2.4.1"
   },
   "dependencies": {
-    "aws-sdk": "^2.931.0",
-    "core-js": "^3.14.0",
+    "aws-sdk": "^2.1023.0",
+    "core-js": "^3.19.1",
     "dotenv": "^10.0.0",
     "fs-extra": "^10.0.0",
-    "ora": "^5.4.1"
+    "ora": "^6.0.1"
   },
   "peerDependencies": {
     "@babel/cli": "^7.x"

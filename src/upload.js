@@ -8,7 +8,7 @@ import fs from "fs-extra"
 
 const exec = util.promisify(child_process.exec)
 
-import log from "./log"
+import log from "./log.js"
 
 export default async function ({
   function_name,

@@ -1,6 +1,6 @@
 import AWS from "aws-sdk"
 
-import log from "./log"
+import log from "./log.js"
 
 export default async function ({ function_name, upload_env }) {
   const req_keys = [
