@@ -5,10 +5,10 @@ import util from "util"
 
 import AWS from "aws-sdk"
 import fs from "fs-extra"
+import terminalKit from "terminal-kit"
+const term = terminalKit.terminal
 
 const exec = util.promisify(child_process.exec)
-
-import log from "./log.js"
 
 export default async function ({
   function_name,
@@ -25,6 +25,11 @@ export default async function ({
   layer,
   deps = []
 }) {
+  term.clear()
+  term("Uploading lambda function ")
+  term.green(function_name)
+  term("\n\n")
+
   AWS.config.update({
     accessKeyId: upload_env.aws_access_key_id,
     secretAccessId: upload_env.aws_secret_access_key,
@@ -35,7 +40,13 @@ export default async function ({
     apiVersion: "2015-03-31"
   })
 
-  log("checking if lambda function exists", "start")
+  let progress_bar = term.progressBar({
+    width: 120,
+    titleSize: 50,
+    title: "checking if lambda function exists",
+    eta: true,
+    percent: true
+  })
   let current_function_info
   let function_exists
 
@@ -49,103 +60,112 @@ export default async function ({
   } catch (e) {
     function_exists = false
   }
-  log(`checking if lambda function exists: ${function_exists}`, "end")
+  progress_bar.update({ progress: 0.05 })
 
   if (function_exists) {
     const aws_runtime = current_function_info?.Configuration?.Runtime
     if (aws_runtime !== runtime) {
-      log(
+      term(
         `there's a runtime mismatch (provided '${runtime}' versus on AWS '${aws_runtime}')`
       )
-      log("let's delete the function and remake it with the right runtime")
+      term("let's delete the function and remake it with the right runtime")
 
-      log("deleting lambda function containing wrong runtime", "start")
+      progress_bar.update({
+        title: "deleting lambda function containing wrong runtime"
+      })
       await lambda
         .deleteFunction({
           FunctionName: function_name
         })
         .promise()
-      log("deleted lambda function containing wrong runtime", "end")
       function_exists = false
     }
   }
+  progress_bar.update({ progress: 0.1 })
 
   const build_path = path.join(os.tmpdir(), `${function_name}_build/`)
   const zip_filename = path.join(os.tmpdir(), `${function_name}.zip`)
   const venv_path = path.join(os.tmpdir(), `${function_name}_venv`)
 
-  log(`cleaning up old folders`, "start")
+  progress_bar.update({ title: "cleaning up old folders" })
   await fs.remove(build_path)
   await fs.remove(zip_filename)
   await fs.remove(venv_path)
-  log(`cleaning up old folders`, "end")
+  progress_bar.update({ progress: 0.15 })
 
-  log(`making build path at ${build_path}`, "start")
+  progress_bar.update({ title: `making build path at ${build_path}` })
   await fs.mkdirp(build_path)
-  log(`made build path at ${build_path}`, "end")
+  progress_bar.update({ progress: 0.2 })
 
-  log("copying static files", "start")
+  progress_bar.update({ title: "copying static files" })
   for (const static_file of statics) {
     const { base } = path.parse(static_file)
     await fs.copy(static_file, path.join(build_path, base))
   }
-  log("copied static files", "end")
+  progress_bar.update({ progress: 0.25 })
 
   if (runtime.indexOf("node") !== -1) {
-    deps = [
-      ...deps,
-      "aws-sdk",
-      "core-js",
-      "dotenv",
-      "fs-extra",
-      "severe-extent"
-    ]
+    progress_bar.update({ progress: 0.28 })
+    deps = [...deps, "aws-sdk", "core-js", "dotenv", "fs-extra"]
 
-    for (const dep of deps) {
-      log(`installing nodejs dep ${dep}`, "start")
+    for (const [i, dep] of deps.entries()) {
+      progress_bar.update({
+        title: `installing nodejs dep ${dep}`,
+        progress: 0.25 + (i / deps.length) * 0.05
+      })
       await exec(`npm install --no-package-lock --prefix ./ ${dep}`, {
         cwd: build_path
       })
-      log(`installed nodejs dep ${dep}`, "end")
     }
+    progress_bar.update({ progress: 0.3 })
 
-    log("generating src files with babel", "start")
-    for (const src_file of src_files) {
+    for (const [i, src_file] of src_files.entries()) {
+      progress_bar.update({
+        title: `generating src file with babel: ${src_file}`,
+        progress: 0.3 + (i / src_files.length) * 0.05
+      })
       await exec(`npx babel src/${src_file}.js --out-dir ${build_path}`)
     }
-    log(`generated ${src_files.length} src files with babel`, "end")
+    progress_bar.update({ progress: 0.35 })
 
-    log("zipping up build folder", "start")
+    progress_bar.update({ title: "zipping up build folder" })
     await exec(`zip -r ${zip_filename} .`, {
       cwd: build_path
     })
-    log("zipping up build folder", "end")
+    progress_bar.update({ progress: 0.4 })
   } else if (runtime.indexOf("python") !== -1) {
+    progress_bar.update({ progress: 0.28 })
     await exec(`python3 -m venv ${venv_path}`)
-    for (const dep of deps) {
-      log(`installing python dep ${dep}`, "start")
+    for (const [i, dep] of deps.entries()) {
+      progress_bar.update({
+        title: `installing python dep ${dep}`,
+        progress: 0.25 + (i / deps.length) * 0.05
+      })
       await exec(`source ${venv_path}/bin/activate && pip3 install ${dep}`)
-      log(`installed python dep ${dep}`, "end")
     }
+    progress_bar.update({ progress: 0.3 })
 
-    log("zipping up python deps", "start")
+    progress_bar.update({ title: "zipping up python deps" })
     await exec(`zip -r ${zip_filename} .`, {
       cwd: `${venv_path}/lib/python3.9/site-packages`
     })
-    log("zipping up python deps", "end")
+    progress_bar.update({ progress: 0.35 })
 
-    for (const src_file of src_files) {
-      log(`adding python file ${src_file} to zip`, "start")
+    for (const [i, src_file] of src_files.entries()) {
+      progress_bar.update({
+        title: `adding python file ${src_file} to zip`,
+        progress: 0.35 + (i / src_files.length) * 0.05
+      })
       await exec(`zip -g  ${zip_filename} ${src_file}.py`, {
         cwd: "./pysrc"
       })
-      log(`added python file ${src_file} to zip`, "end")
     }
+    progress_bar.update({ progress: 0.4 })
   } else {
     throw new Error("Non-supported runtime")
   }
 
-  log("uploading zip to s3", "start")
+  progress_bar.update({ title: "uploading zip to s3" })
   const S3 = new AWS.S3({
     apiVersion: "2006-03-01"
   })
@@ -154,11 +174,12 @@ export default async function ({
     Key: `${function_name}.zip`,
     Body: fs.createReadStream(zip_filename)
   }).promise()
-
-  log("uploaded zip to s3", "end")
+  progress_bar.update({ progress: 0.45 })
 
   if (!function_exists) {
-    log("creating lambda function because it doesn't exist", "start")
+    progress_bar.update({
+      title: "creating lambda function because it doesn't exist"
+    })
     await lambda
       .createFunction({
         FunctionName: function_name,
@@ -180,9 +201,9 @@ export default async function ({
         }
       })
       .promise()
-    log("created lambda function because it didn't exist", "end")
+    progress_bar.update({ progress: 0.5 })
   } else {
-    log("updating lambda because it already existed", "start")
+    progress_bar.update({ title: "updating lambda because it already existed" })
 
     await lambda
       .updateFunctionCode({
@@ -208,27 +229,29 @@ export default async function ({
         }
       })
       .promise()
-    log("updated lambda because it already existed", "end")
+    progress_bar.update({ progress: 0.5 })
   }
 
-  log("fetching lambda function info again", "start")
+  progress_bar.update({ title: "fetching lambda function info again" })
   const latest_function_info = await lambda
     .getFunction({
       FunctionName: function_name
     })
     .promise()
-  log("fetched lambda function info again", "end")
+  progress_bar.update({ progress: 0.55 })
 
   var eventbridge = new AWS.EventBridge({ apiVersion: "2015-10-07" })
 
-  log("removing old schedules", "start")
+  progress_bar.update({ title: "removing old schedules" })
   let { RuleNames: old_rules } = await eventbridge
     .listRuleNamesByTarget({
       TargetArn: latest_function_info?.Configuration?.FunctionArn
     })
     .promise()
 
-  for (const old_rule of old_rules) {
+  progress_bar.update({ progress: 0.7 })
+  for (const [i, old_rule] of old_rules.entries()) {
+    progress_bar.update({ title: `fetching old rule ${old_rule}` })
     const { Targets: all_targets_of_old_rule } = await eventbridge
       .listTargetsByRule({
         Rule: old_rule
@@ -238,6 +261,10 @@ export default async function ({
     const targets = all_targets_of_old_rule.filter((t) => {
       return t.Arn === latest_function_info?.Configuration?.FunctionArn
     })
+    progress_bar.update({
+      title: `removing old rule ${old_rule}`,
+      progress: 0.7 + (i / src_files.length) * 0.1
+    })
     eventbridge
       .removeTargets({
         Ids: targets.map((t) => t.Id),
@@ -245,9 +272,9 @@ export default async function ({
       })
       .promise()
   }
-  log("removed old schedules", "end")
+  progress_bar.update({ progress: 0.8 })
 
-  for (const s of schedule) {
+  for (const [i, s] of schedule.entries()) {
     let expression
     let event_name
     if (s.how_often === "hourly") {
@@ -258,16 +285,21 @@ export default async function ({
       event_name = `daily_at_${s.at_hour}_${s.at_minute}`
     }
 
-    log(`adding new rule ${event_name}`, "start")
+    progress_bar.update({
+      title: `adding new rule ${event_name}`,
+      progress: 0.8 + (i / schedule.length) * 0.2 * 0.3
+    })
     const new_rule = await eventbridge
       .putRule({
         Name: event_name,
         ScheduleExpression: expression
       })
       .promise()
-    log(`adding new rule ${event_name}`, "end")
 
-    log("granting permissions for rule", "start")
+    progress_bar.update({
+      title: `granting permissions for rule ${event_name}`,
+      progress: 0.8 + (i / schedule.length) * 0.2 * 0.6
+    })
     try {
       await lambda
         .addPermission({
@@ -281,9 +313,11 @@ export default async function ({
     } catch (e) {
       // it's ok
     }
-    log("granted permissions for rule", "end")
 
-    log("associating rule with function", "start")
+    progress_bar.update({
+      title: `associating rule ${event_name} with function`,
+      progress: 0.8 + (i / schedule.length) * 0.2
+    })
     await eventbridge
       .putTargets({
         Rule: event_name,
@@ -295,6 +329,6 @@ export default async function ({
         ]
       })
       .promise()
-    log("associated rule with function", "end")
   }
+  progress_bar.update({ progress: 1 })
 }
