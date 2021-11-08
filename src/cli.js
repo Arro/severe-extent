@@ -1,68 +1,85 @@
 #!/usr/bin/env node
 import sanity from "./sanity.js"
-import log from "./log.js"
 import info from "./info.js"
 import upload from "./upload.js"
 import invoke from "./invoke.js"
 import dotenv from "dotenv"
 import path from "path"
-//import fs from "fs-extra"
+
+import terminalKit from "terminal-kit"
+import paginatedMenu from "#src/paginated-menu.js"
+
+const term = terminalKit.terminal
 
 dotenv.config()
 const config_file = path.join(process.cwd(), ".severe-extent.cjs")
 
 const json = await import(config_file)
-/*
-const filename = `${process.cwd()}/.severe-extent.cjs`
 
-let json
-try {
-  json = await fs.readFile(filename, "utf-8")
-} catch (error) {
-  console.log(error)
-  log("Couldn't find (and/or read) a valid `.severe-extent.cjs` file.")
-  process.exit()
-
-*/
-console.log(json.default)
-
-const { valid_keys, invalid_keys } = await sanity(json.default)
-const [, , ...args] = process.argv
-
-if (!args?.length) {
-  if (valid_keys.length) {
-    log(`Found valid keys '${valid_keys.join("', '")}'`, "end")
-    log(`Run \`severe [key]\` for more info`)
+term.on("key", function (name) {
+  if (name === "CTRL_C") {
+    process.exit()
   }
+})
 
+term.clear()
+term("\n")
+term.bgWhite.black(
+  "                        Severe Extent                       "
+)
+const menu_items = [
+  {
+    name: "Check config file sanity",
+    command: "sanity"
+  },
+  {
+    name: "Upload a lambda function",
+    command: "upload"
+  },
+  {
+    name: "Get info on a lamdba function",
+    command: "info"
+  },
+  {
+    name: "Invoke a lambda function",
+    command: "invoke"
+  },
+  {
+    name: "Run a lambda handler, but locally",
+    command: "run_local"
+  }
+]
+
+term("\n\n")
+await term(`How do you want to procede?`)
+term("\n")
+const choice = await paginatedMenu(menu_items, (m) => m.name)
+
+if (choice.command === "sanity") {
+  const { valid_keys, invalid_keys } = await sanity(json.default)
+  term.clear()
+  if (valid_keys.length) {
+    term(`Found valid keys '${valid_keys.join("', '")}'\n\n`)
+  }
   if (invalid_keys.length) {
-    log(
-      `Found keys '${invalid_keys.join("', '")}' but the info was invalid`,
-      "error"
+    term(
+      `Found keys '${invalid_keys.join("', '")}' but the info was invalid\n\n`
     )
   }
   process.exit()
 }
 
-if (
-  invalid_keys.find((k) => {
-    return k === args[0]
-  })
-) {
-  log("The function you provided has an invalid config", "error")
-  process.exit()
-}
+term.clear()
+term("\n\n")
+await term(`What lambda function?`)
+term("\n")
 
-if (args?.length === 1) {
-  log(`You can run \`severe ${args[0]} info\``)
-  log(`You can run \`severe ${args[0]} upload\``)
-  log(`You can run \`severe ${args[0]} invoke\``)
-  process.exit()
-}
+const func = await paginatedMenu(
+  Object.values(json.default),
+  (f) => f.function_name
+)
 
-if (args[1] === "upload") {
-  log("upload")
-
+if (choice.command === "upload") {
   let {
     function_name,
     src_files,
@@ -76,7 +93,7 @@ if (args[1] === "upload") {
     role,
     layer,
     deps
-  } = json[args[0]]
+  } = func
 
   let upload_env_map = {}
 
@@ -123,8 +140,11 @@ if (args[1] === "upload") {
   process.exit()
 }
 
-if (args[1] === "info") {
-  let { function_name } = json[args[0]]
+if (choice.command === "info") {
+  term("\n\n")
+  term(func)
+  term("\n\n")
+  let { function_name } = func
 
   let upload_env = [
     "aws_access_key_id",
@@ -145,8 +165,8 @@ if (args[1] === "info") {
   })
 }
 
-if (args[1] === "invoke") {
-  let { function_name } = json[args[0]]
+if (choice.command === "invoke") {
+  let { function_name } = func
 
   let upload_env = [
     "aws_access_key_id",
