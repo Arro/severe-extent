@@ -1,6 +1,6 @@
 {
   "name": "severe-extent",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "scripts": {
     "build": "npx babel src --out-dir dist && npm link && chmod +x dist/cli.js"
   },

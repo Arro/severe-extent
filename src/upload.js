@@ -106,16 +106,19 @@ export default async function ({
 
   if (runtime.indexOf("node") !== -1) {
     progress_bar.update({ progress: 0.28 })
-    deps = [...deps, "aws-sdk", "core-js", "dotenv", "fs-extra"]
+    deps = [...deps, "core-js", "dotenv", "fs-extra"]
 
     for (const [i, dep] of deps.entries()) {
       progress_bar.update({
         title: `installing nodejs dep ${dep}`,
         progress: 0.25 + (i / deps.length) * 0.05
       })
-      await exec(`npm install --no-package-lock --prefix ./ ${dep}`, {
-        cwd: build_path
-      })
+      await exec(
+        `npm install --only=prod --no-package-lock --prefix ./ ${dep}`,
+        {
+          cwd: build_path
+        }
+      )
     }
     progress_bar.update({ progress: 0.3 })
 
