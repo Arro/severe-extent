@@ -6,14 +6,15 @@ import util from "util"
 import AWS from "aws-sdk"
 import fs from "fs-extra"
 import terminalKit from "terminal-kit"
-const term = terminalKit.terminal
 
+import prepareNodeLocally from "./prepare-node-locally.js"
+
+const term = terminalKit.terminal
 const exec = util.promisify(child_process.exec)
 
 export default async function ({
   function_name,
   src_files,
-  handler = "index.handler",
   statics = [],
   timeout = 3,
   memory_size = 128,
@@ -26,9 +27,10 @@ export default async function ({
   deps = []
 }) {
   term.clear()
-  term("Uploading lambda function ")
+  await term.spinner("impulse")
+  term(" Uploading lambda function ")
   term.green(function_name)
-  term("\n\n")
+  term("...\n\n")
 
   AWS.config.update({
     accessKeyId: upload_env.aws_access_key_id,
@@ -85,16 +87,10 @@ export default async function ({
 
   const build_path = path.join(os.tmpdir(), `${function_name}_build/`)
   const zip_filename = path.join(os.tmpdir(), `${function_name}.zip`)
-  const venv_path = path.join(os.tmpdir(), `${function_name}_venv`)
 
-  progress_bar.update({ title: "cleaning up old folders" })
-  await fs.remove(build_path)
+  progress_bar.update({ title: "cleaning up zip" })
   await fs.remove(zip_filename)
-  await fs.remove(venv_path)
-  progress_bar.update({ progress: 0.15 })
 
-  progress_bar.update({ title: `making build path at ${build_path}` })
-  await fs.mkdirp(build_path)
   progress_bar.update({ progress: 0.2 })
 
   progress_bar.update({ title: "copying static files" })
@@ -106,37 +102,22 @@ export default async function ({
 
   if (runtime.indexOf("node") !== -1) {
     progress_bar.update({ progress: 0.28 })
-    deps = [...deps, "core-js", "dotenv", "fs-extra"]
-
-    for (const [i, dep] of deps.entries()) {
-      progress_bar.update({
-        title: `installing nodejs dep ${dep}`,
-        progress: 0.25 + (i / deps.length) * 0.05
-      })
-      await exec(
-        `npm install --only=prod --no-package-lock --prefix ./ ${dep}`,
-        {
-          cwd: build_path
-        }
-      )
-    }
-    progress_bar.update({ progress: 0.3 })
-
-    for (const [i, src_file] of src_files.entries()) {
-      progress_bar.update({
-        title: `generating src file with babel: ${src_file}`,
-        progress: 0.3 + (i / src_files.length) * 0.05
-      })
-      await exec(`npx babel src/${src_file}.js --out-dir ${build_path}`)
-    }
-    progress_bar.update({ progress: 0.35 })
-
+    await prepareNodeLocally({ build_path, src_files, deps }, progress_bar)
+    progress_bar?.update({ progress: 0.35 })
     progress_bar.update({ title: "zipping up build folder" })
     await exec(`zip -r ${zip_filename} .`, {
       cwd: build_path
     })
     progress_bar.update({ progress: 0.4 })
   } else if (runtime.indexOf("python") !== -1) {
+    const venv_path = path.join(os.tmpdir(), `${function_name}_venv`)
+    progress_bar?.update({ title: "cleaning up old folders" })
+    await fs.remove(venv_path)
+    await fs.remove(build_path)
+
+    progress_bar?.update({ title: `making build path at ${build_path}` })
+    await fs.mkdirp(build_path)
+
     progress_bar.update({ progress: 0.28 })
     await exec(`python3 -m venv ${venv_path}`)
     for (const [i, dep] of deps.entries()) {
@@ -188,7 +169,7 @@ export default async function ({
         FunctionName: function_name,
         Runtime: runtime,
         Role: role,
-        Handler: handler,
+        Handler: "lambda/handler.handler",
         Timeout: timeout,
         MemorySize: memory_size,
         Layers: layer ? [layer] : [],
@@ -219,7 +200,7 @@ export default async function ({
     await lambda
       .updateFunctionConfiguration({
         FunctionName: function_name,
-        Handler: handler,
+        Handler: "lambda/handler.handler",
         Timeout: timeout,
         MemorySize: memory_size,
         Layers: layer ? [layer] : [],
@@ -280,6 +261,8 @@ export default async function ({
   for (const [i, s] of schedule.entries()) {
     let expression
     let event_name
+    let one_step = 1 / schedule.length
+    let schedule_progress = i / schedule.length
     if (s.how_often === "hourly") {
       expression = `cron(${s.at_minute} * ? * * *)`
       event_name = `hourly_at_${s.at_minute}`
@@ -290,7 +273,7 @@ export default async function ({
 
     progress_bar.update({
       title: `adding new rule ${event_name}`,
-      progress: 0.8 + (i / schedule.length) * 0.2 * 0.3
+      progress: 0.8 + schedule_progress * 0.2 + one_step * 0.3
     })
     const new_rule = await eventbridge
       .putRule({
@@ -301,7 +284,7 @@ export default async function ({
 
     progress_bar.update({
       title: `granting permissions for rule ${event_name}`,
-      progress: 0.8 + (i / schedule.length) * 0.2 * 0.6
+      progress: 0.8 + schedule_progress * 0.2 + one_step * 0.6
     })
     try {
       await lambda
@@ -319,7 +302,7 @@ export default async function ({
 
     progress_bar.update({
       title: `associating rule ${event_name} with function`,
-      progress: 0.8 + (i / schedule.length) * 0.2
+      progress: 0.8 + schedule_progress * 0.2 + one_step * 0.9
     })
     await eventbridge
       .putTargets({
@@ -334,4 +317,9 @@ export default async function ({
       .promise()
   }
   progress_bar.update({ progress: 1 })
+
+  term.clear()
+  term(`Uploaded `)
+  term.green(function_name)
+  term(".\n\n")
 }

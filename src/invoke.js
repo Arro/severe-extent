@@ -1,6 +1,7 @@
 import AWS from "aws-sdk"
+import terminalKit from "terminal-kit"
 
-import log from "./log.js"
+const term = terminalKit.terminal
 
 export default async function ({ function_name, upload_env }) {
   const req_keys = [
@@ -25,19 +26,27 @@ export default async function ({ function_name, upload_env }) {
     apiVersion: "2015-03-31"
   })
 
-  log(`Invoking ${function_name}`, "start")
+  term.clear()
+  await term.spinner("impulse")
+  term(` Invoking `)
+  term.green(function_name)
+  term("...\n\n")
+
   try {
-    const data = await lambda
+    await lambda
       .invokeAsync({
         FunctionName: function_name,
         InvokeArgs: "{}"
       })
       .promise()
-    console.log(data)
   } catch (e) {
-    log("There was an error while invoking", "error")
+    term.red("There was an error while invoking\n\n")
     console.log(e)
     return
   }
-  log(`Invoked ${function_name}`, "end")
+  term.clear()
+  term(`Invoked `)
+  term.green(function_name)
+  term(".\n\n")
+  process.exit()
 }

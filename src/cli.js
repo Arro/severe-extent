@@ -3,6 +3,7 @@ import sanity from "./sanity.js"
 import info from "./info.js"
 import upload from "./upload.js"
 import invoke from "./invoke.js"
+import runLocal from "./run-local.js"
 import dotenv from "dotenv"
 import path from "path"
 
@@ -18,6 +19,7 @@ const json = await import(config_file)
 
 term.on("key", function (name) {
   if (name === "CTRL_C") {
+    term.clear()
     process.exit()
   }
 })
@@ -185,4 +187,17 @@ if (choice.command === "invoke") {
     function_name,
     upload_env
   })
+}
+
+if (choice.command === "run_local") {
+  let { function_name, src_files, runtime, deps } = func
+
+  await runLocal({
+    function_name,
+    runtime,
+    src_files,
+    deps
+  })
+
+  process.exit()
 }
