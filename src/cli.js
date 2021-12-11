@@ -114,16 +114,6 @@ if (choice.command === "upload") {
   })
   upload_env = upload_env_map
 
-  let exe_env_map = {}
-  exe_env.forEach((key) => {
-    const value = process.env?.[key]
-    if (!value) {
-      throw new Error(`You're missing an exe_env : ${key}`)
-    }
-    exe_env_map[key] = value
-  })
-  exe_env = exe_env_map
-
   await upload({
     function_name,
     src_files,

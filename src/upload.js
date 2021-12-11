@@ -164,6 +164,15 @@ export default async function ({
   }).promise()
   progress_bar.update({ progress: 0.45 })
 
+  let exe_env_map = {}
+  exe_env.forEach((key) => {
+    const value = process.env?.[key]
+    if (!value) {
+      throw new Error(`You're missing an exe_env : ${key}`)
+    }
+    exe_env_map[key] = value
+  })
+
   if (!function_exists) {
     progress_bar.update({
       title: "creating lambda function because it doesn't exist"
@@ -179,7 +188,7 @@ export default async function ({
         Layers: layer ? [layer] : [],
         Environment: {
           Variables: {
-            ...exe_env,
+            ...exe_env_map,
             ...upload_env
           }
         },
@@ -211,7 +220,7 @@ export default async function ({
         Role: role,
         Environment: {
           Variables: {
-            ...exe_env,
+            ...exe_env_map,
             ...upload_env
           }
         }
