@@ -27,10 +27,11 @@ export default async function ({ function_name, upload_env }) {
   })
 
   term.clear()
-  await term.spinner("impulse")
-  term(` Invoking `)
+  term("Invoking ")
   term.green(function_name)
-  term("...\n\n")
+  term(" ")
+  await term.spinner("impulse")
+  term("\n\n")
 
   try {
     await lambda

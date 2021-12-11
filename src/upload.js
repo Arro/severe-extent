@@ -27,10 +27,11 @@ export default async function ({
   deps = []
 }) {
   term.clear()
-  await term.spinner("impulse")
-  term(" Uploading lambda function ")
+  term("Uploading lambda function ")
   term.green(function_name)
-  term("...\n\n")
+  term(" ")
+  await term.spinner("impulse")
+  term("\n\n")
 
   AWS.config.update({
     accessKeyId: upload_env.aws_access_key_id,
@@ -102,7 +103,10 @@ export default async function ({
 
   if (runtime.indexOf("node") !== -1) {
     progress_bar.update({ progress: 0.28 })
-    await prepareNodeLocally({ build_path, src_files, deps }, progress_bar)
+    await prepareNodeLocally(
+      { build_path, src_files, deps, exe_env },
+      progress_bar
+    )
     progress_bar?.update({ progress: 0.35 })
     progress_bar.update({ title: "zipping up build folder" })
     await exec(`zip -r ${zip_filename} .`, {

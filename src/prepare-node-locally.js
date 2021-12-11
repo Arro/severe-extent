@@ -6,7 +6,10 @@ import fs from "fs-extra"
 
 const exec = util.promisify(child_process.exec)
 
-export default async function ({ build_path, src_files, deps }, progress_bar) {
+export default async function (
+  { build_path, src_files, deps, exe_env },
+  progress_bar
+) {
   progress_bar?.update({ title: "cleaning up old folders" })
   await fs.remove(build_path)
 
@@ -38,6 +41,12 @@ export default async function ({ build_path, src_files, deps }, progress_bar) {
     `{"type": "module"}`,
     "utf-8"
   )
+
+  let env_contents = ""
+  for (const env of exe_env) {
+    env_contents += `${env}=${process.env[env]}\n`
+  }
+  await fs.writeFile(path.join(build_path, ".env"), env_contents, "utf-8")
 
   for (const [i, dep] of deps.entries()) {
     progress_bar?.update({

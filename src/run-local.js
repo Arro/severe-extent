@@ -7,7 +7,13 @@ import prepareNodeLocally from "./prepare-node-locally.js"
 
 const term = terminalKit.terminal
 
-export default async function ({ runtime, function_name, src_files, deps }) {
+export default async function ({
+  runtime,
+  function_name,
+  src_files,
+  deps,
+  exe_env
+}) {
   if (runtime !== "nodejs14.x") {
     term.clear()
     term("Local run of runtime ")
@@ -17,14 +23,15 @@ export default async function ({ runtime, function_name, src_files, deps }) {
     return
   }
 
-  await term.spinner("impulse")
-  term(" Running function ")
+  term("Running function ")
   term.green(function_name)
-  term(" locally...\n\n")
+  term(" locally ")
+  await term.spinner("impulse")
+  term("\n\n")
 
   const build_path = path.join(os.tmpdir(), `${function_name}_build/`)
 
-  await prepareNodeLocally({ build_path, src_files, deps })
+  await prepareNodeLocally({ build_path, src_files, deps, exe_env })
 
   const { handler } = await import(`${build_path}/lambda/handler.js`)
   await handler()

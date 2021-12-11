@@ -190,12 +190,13 @@ if (choice.command === "invoke") {
 }
 
 if (choice.command === "run_local") {
-  let { function_name, src_files, runtime, deps } = func
+  let { function_name, src_files, runtime, deps, exe_env } = func
 
   await runLocal({
     function_name,
     runtime,
     src_files,
+    exe_env,
     deps
   })
 
