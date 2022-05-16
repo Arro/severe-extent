@@ -3,6 +3,7 @@ import sanity from "./sanity.js"
 import info from "./info.js"
 import upload from "./upload.js"
 import invoke from "./invoke.js"
+import remove from "./remove.js"
 import runLocal from "./run-local.js"
 import dotenv from "dotenv"
 import path from "path"
@@ -37,6 +38,10 @@ const menu_items = [
   {
     name: "Upload a lambda function",
     command: "upload"
+  },
+  {
+    name: "Remove a lambda function",
+    command: "remove"
   },
   {
     name: "Get info on a lamdba function",
@@ -188,6 +193,30 @@ if (choice.command === "run_local") {
     src_files,
     exe_env,
     deps
+  })
+
+  process.exit()
+}
+
+if (choice.command === "remove") {
+  let { function_name } = func
+
+  let upload_env = [
+    "aws_access_key_id",
+    "aws_secret_access_key",
+    "aws_region",
+    "aws_s3_bucket"
+  ]
+
+  let upload_env_map = {}
+  upload_env.forEach((key) => {
+    upload_env_map[key] = process.env[key]
+  })
+  upload_env = upload_env_map
+
+  await remove({
+    function_name,
+    upload_env
   })
 
   process.exit()

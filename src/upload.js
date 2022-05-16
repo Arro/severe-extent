@@ -67,12 +67,25 @@ export default async function ({
 
   if (function_exists) {
     const aws_runtime = current_function_info?.Configuration?.Runtime
+    const region =
+      current_function_info?.Configuration?.FunctionArn?.split(":")?.[3]
+    let delete_first = false
     if (aws_runtime !== runtime) {
       term(
         `there's a runtime mismatch (provided '${runtime}' versus on AWS '${aws_runtime}')`
       )
       term("let's delete the function and remake it with the right runtime")
+      delete_first = true
+    }
+    if (region !== upload_env.aws_region) {
+      term(
+        `there's a region mismatch (provided '${upload_env.aws_region}' versus on AWS '${region}')`
+      )
+      term("let's delete the function and remake it with the right region")
+      delete_first = true
+    }
 
+    if (delete_first) {
       progress_bar.update({
         title: "deleting lambda function containing wrong runtime"
       })

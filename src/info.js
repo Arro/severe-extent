@@ -40,8 +40,6 @@ export default async function ({ function_name, upload_env }) {
   }
   log("pulled function config from AWS:", "end")
 
-  console.log(JSON.stringify(function_info?.Configuration, null, 2))
-
   var eventbridge = new AWS.EventBridge({ apiVersion: "2015-10-07" })
   const buses = await eventbridge.listEventBuses({}).promise()
   const bus = buses?.EventBuses?.find((b) => {

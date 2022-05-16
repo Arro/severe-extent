@@ -13,20 +13,20 @@
   "type": "module",
   "main": "dist/index.js",
   "devDependencies": {
-    "@babel/cli": "^7.12.10",
-    "@babel/core": "^7.16.0",
-    "@babel/eslint-parser": "^7.16.3",
-    "@babel/preset-env": "^7.16.4",
-    "eslint": "^8.4.1",
-    "prettier": "^2.5.1"
+    "@babel/cli": "^7.17.10",
+    "@babel/core": "^7.17.10",
+    "@babel/eslint-parser": "^7.17.0",
+    "@babel/preset-env": "^7.17.10",
+    "eslint": "^8.15.0",
+    "prettier": "^2.6.2"
   },
   "dependencies": {
-    "aws-sdk": "^2.1046.0",
-    "core-js": "^3.19.3",
-    "dotenv": "^10.0.0",
-    "fs-extra": "^10.0.0",
-    "ora": "^6.0.1",
-    "terminal-kit": "^2.3.0"
+    "aws-sdk": "^2.1135.0",
+    "core-js": "^3.22.5",
+    "dotenv": "^16.0.1",
+    "fs-extra": "^10.1.0",
+    "ora": "^6.1.0",
+    "terminal-kit": "^2.4.0"
   },
   "peerDependencies": {
     "@babel/cli": "^7.x"
