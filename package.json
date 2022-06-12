@@ -1,6 +1,6 @@
 {
   "name": "severe-extent",
-  "version": "1.8.2",
+  "version": "1.8.3",
   "scripts": {
     "build": "npx babel src --out-dir dist && npm link && chmod +x dist/cli.js"
   },
@@ -14,15 +14,17 @@
   "main": "dist/index.js",
   "devDependencies": {
     "@babel/cli": "^7.17.10",
-    "@babel/core": "^7.17.10",
-    "@babel/eslint-parser": "^7.17.0",
-    "@babel/preset-env": "^7.17.10",
-    "eslint": "^8.15.0",
+    "@babel/core": "^7.18.2",
+    "@babel/eslint-parser": "^7.18.2",
+    "@babel/preset-env": "^7.18.2",
+    "eslint": "^8.17.0",
     "prettier": "^2.6.2"
   },
   "dependencies": {
-    "aws-sdk": "^2.1135.0",
-    "core-js": "^3.22.5",
+    "@aws-sdk/client-eventbridge": "^3.105.0",
+    "@aws-sdk/client-s3": "^3.107.0",
+    "aws-sdk": "^2.1152.0",
+    "core-js": "^3.22.8",
     "dotenv": "^16.0.1",
     "fs-extra": "^10.1.0",
     "ora": "^6.1.0",

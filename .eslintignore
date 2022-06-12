@@ -1,4 +1,5 @@
 !/.eslintrc.cjs
 !/.babelrc.cjs
 !/.prettierrc.cjs
+package.json
 dist

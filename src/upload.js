@@ -3,7 +3,25 @@ import os from "os"
 import path from "path"
 import util from "util"
 
-import AWS from "aws-sdk"
+import {
+  LambdaClient,
+  GetFunctionCommand,
+  DeleteFunctionCommand,
+  CreateFunctionCommand,
+  AddPermissionCommand
+} from "@aws-sdk/client-lambda"
+
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+
+import {
+  EventBridgeClient,
+  ListRuleNamesByTargetCommand,
+  ListTargetsByRuleCommand,
+  RemoveTargetsCommand,
+  PutRuleCommand,
+  PutTargetsCommand
+} from "@aws-sdk/client-eventbridge"
+
 import fs from "fs-extra"
 import terminalKit from "terminal-kit"
 
@@ -33,15 +51,7 @@ export default async function ({
   await term.spinner("impulse")
   term("\n\n")
 
-  AWS.config.update({
-    accessKeyId: upload_env.aws_access_key_id,
-    secretAccessId: upload_env.aws_secret_access_key,
-    region: upload_env.aws_region
-  })
-
-  const lambda = new AWS.Lambda({
-    apiVersion: "2015-03-31"
-  })
+  const lambda_client = new LambdaClient({ region: upload_env.aws_region })
 
   let progress_bar = term.progressBar({
     width: 120,
@@ -50,15 +60,15 @@ export default async function ({
     eta: true,
     percent: true
   })
-  let current_function_info
+
   let function_exists
 
   try {
-    current_function_info = await lambda
-      .getFunction({
+    await lambda_client.send(
+      new GetFunctionCommand({
         FunctionName: function_name
       })
-      .promise()
+    )
     function_exists = true
   } catch (e) {
     function_exists = false
@@ -66,36 +76,15 @@ export default async function ({
   progress_bar.update({ progress: 0.05 })
 
   if (function_exists) {
-    const aws_runtime = current_function_info?.Configuration?.Runtime
-    const region =
-      current_function_info?.Configuration?.FunctionArn?.split(":")?.[3]
-    let delete_first = false
-    if (aws_runtime !== runtime) {
-      term(
-        `there's a runtime mismatch (provided '${runtime}' versus on AWS '${aws_runtime}')`
-      )
-      term("let's delete the function and remake it with the right runtime")
-      delete_first = true
-    }
-    if (region !== upload_env.aws_region) {
-      term(
-        `there's a region mismatch (provided '${upload_env.aws_region}' versus on AWS '${region}')`
-      )
-      term("let's delete the function and remake it with the right region")
-      delete_first = true
-    }
+    term(
+      "deleting the function because we need to do that first for some reason"
+    )
 
-    if (delete_first) {
-      progress_bar.update({
-        title: "deleting lambda function containing wrong runtime"
+    await lambda_client.send(
+      new DeleteFunctionCommand({
+        FunctionName: function_name
       })
-      await lambda
-        .deleteFunction({
-          FunctionName: function_name
-        })
-        .promise()
-      function_exists = false
-    }
+    )
   }
   progress_bar.update({ progress: 0.1 })
 
@@ -167,14 +156,17 @@ export default async function ({
   }
 
   progress_bar.update({ title: "uploading zip to s3" })
-  const S3 = new AWS.S3({
-    apiVersion: "2006-03-01"
+
+  const s3_client = new S3Client({
+    region: upload_env.aws_region
   })
-  await S3.upload({
-    Bucket: upload_env.aws_s3_bucket,
-    Key: `${function_name}.zip`,
-    Body: fs.createReadStream(zip_filename)
-  }).promise()
+  await s3_client.send(
+    new PutObjectCommand({
+      Bucket: upload_env.aws_s3_bucket,
+      Key: `${function_name}.zip`,
+      Body: fs.createReadStream(zip_filename)
+    })
+  )
   progress_bar.update({ progress: 0.45 })
 
   let exe_env_map = {}
@@ -186,87 +178,59 @@ export default async function ({
     exe_env_map[key] = value
   })
 
-  if (!function_exists) {
-    progress_bar.update({
-      title: "creating lambda function because it doesn't exist"
-    })
-    await lambda
-      .createFunction({
-        FunctionName: function_name,
-        Runtime: runtime,
-        Role: role,
-        Handler: "lambda/handler.handler",
-        Timeout: timeout,
-        MemorySize: memory_size,
-        Layers: layer ? [layer] : [],
-        Environment: {
-          Variables: {
-            ...exe_env_map,
-            ...upload_env
-          }
-        },
-        Code: {
-          S3Bucket: upload_env.aws_s3_bucket,
-          S3Key: `${function_name}.zip`
+  progress_bar.update({
+    title: "creating lambda function because it doesn't exist"
+  })
+  await lambda_client.send(
+    new CreateFunctionCommand({
+      FunctionName: function_name,
+      Runtime: runtime,
+      Role: role,
+      Handler: "lambda/handler.handler",
+      Timeout: timeout,
+      MemorySize: memory_size,
+      Layers: layer ? [layer] : [],
+      Environment: {
+        Variables: {
+          ...exe_env_map,
+          ...upload_env
         }
-      })
-      .promise()
-    progress_bar.update({ progress: 0.5 })
-  } else {
-    progress_bar.update({ title: "updating lambda because it already existed" })
-
-    await lambda
-      .updateFunctionCode({
-        FunctionName: function_name,
+      },
+      Code: {
         S3Bucket: upload_env.aws_s3_bucket,
         S3Key: `${function_name}.zip`
-      })
-      .promise()
-
-    await lambda
-      .updateFunctionConfiguration({
-        FunctionName: function_name,
-        Handler: "lambda/handler.handler",
-        Timeout: timeout,
-        MemorySize: memory_size,
-        Layers: layer ? [layer] : [],
-        Role: role,
-        Environment: {
-          Variables: {
-            ...exe_env_map,
-            ...upload_env
-          }
-        }
-      })
-      .promise()
-    progress_bar.update({ progress: 0.5 })
-  }
+      }
+    })
+  )
+  progress_bar.update({ progress: 0.5 })
 
   progress_bar.update({ title: "fetching lambda function info again" })
-  const latest_function_info = await lambda
-    .getFunction({
+  const latest_function_info = await lambda_client.send(
+    new GetFunctionCommand({
       FunctionName: function_name
     })
-    .promise()
+  )
   progress_bar.update({ progress: 0.55 })
 
-  var eventbridge = new AWS.EventBridge({ apiVersion: "2015-10-07" })
+  const eventbridge_client = new EventBridgeClient({
+    region: upload_env.aws_region
+  })
 
   progress_bar.update({ title: "removing old schedules" })
-  let { RuleNames: old_rules } = await eventbridge
-    .listRuleNamesByTarget({
+  let { RuleNames: old_rules } = await eventbridge_client.send(
+    new ListRuleNamesByTargetCommand({
       TargetArn: latest_function_info?.Configuration?.FunctionArn
     })
-    .promise()
+  )
 
   progress_bar.update({ progress: 0.7 })
   for (const [i, old_rule] of old_rules.entries()) {
     progress_bar.update({ title: `fetching old rule ${old_rule}` })
-    const { Targets: all_targets_of_old_rule } = await eventbridge
-      .listTargetsByRule({
+    const { Targets: all_targets_of_old_rule } = await eventbridge_client.send(
+      new ListTargetsByRuleCommand({
         Rule: old_rule
       })
-      .promise()
+    )
 
     const targets = all_targets_of_old_rule.filter((t) => {
       return t.Arn === latest_function_info?.Configuration?.FunctionArn
@@ -275,12 +239,12 @@ export default async function ({
       title: `removing old rule ${old_rule}`,
       progress: 0.7 + (i / src_files.length) * 0.1
     })
-    eventbridge
-      .removeTargets({
+    eventbridge_client.send(
+      new RemoveTargetsCommand({
         Ids: targets.map((t) => t.Id),
         Rule: old_rule
       })
-      .promise()
+    )
   }
   progress_bar.update({ progress: 0.8 })
 
@@ -301,27 +265,27 @@ export default async function ({
       title: `adding new rule ${event_name}`,
       progress: 0.8 + schedule_progress * 0.2 + one_step * 0.3
     })
-    const new_rule = await eventbridge
-      .putRule({
+    const new_rule = await eventbridge_client.send(
+      new PutRuleCommand({
         Name: event_name,
         ScheduleExpression: expression
       })
-      .promise()
+    )
 
     progress_bar.update({
       title: `granting permissions for rule ${event_name}`,
       progress: 0.8 + schedule_progress * 0.2 + one_step * 0.6
     })
     try {
-      await lambda
-        .addPermission({
+      await lambda_client.send(
+        new AddPermissionCommand({
           Action: "lambda:InvokeFunction",
           FunctionName: function_name,
           Principal: "events.amazonaws.com",
           StatementId: `${event_name}__${function_name}`,
           SourceArn: new_rule.Arn
         })
-        .promise()
+      )
     } catch (e) {
       // it's ok
     }
@@ -330,8 +294,8 @@ export default async function ({
       title: `associating rule ${event_name} with function`,
       progress: 0.8 + schedule_progress * 0.2 + one_step * 0.9
     })
-    await eventbridge
-      .putTargets({
+    await eventbridge_client.send(
+      new PutTargetsCommand({
         Rule: event_name,
         Targets: [
           {
@@ -340,7 +304,7 @@ export default async function ({
           }
         ]
       })
-      .promise()
+    )
   }
   progress_bar.update({ progress: 1 })
 
