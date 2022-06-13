@@ -8,7 +8,10 @@ import {
   GetFunctionCommand,
   DeleteFunctionCommand,
   CreateFunctionCommand,
-  AddPermissionCommand
+  AddPermissionCommand,
+  CreateEventSourceMappingCommand,
+  ListEventSourceMappingsCommand,
+  DeleteEventSourceMappingCommand
 } from "@aws-sdk/client-lambda"
 
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
@@ -21,6 +24,14 @@ import {
   PutRuleCommand,
   PutTargetsCommand
 } from "@aws-sdk/client-eventbridge"
+
+import {
+  SQSClient,
+  CreateQueueCommand,
+  GetQueueUrlCommand,
+  GetQueueAttributesCommand,
+  DeleteQueueCommand
+} from "@aws-sdk/client-sqs"
 
 import fs from "fs-extra"
 import terminalKit from "terminal-kit"
@@ -42,6 +53,8 @@ export default async function ({
   role,
   schedule = [],
   layer,
+  source_queue_name,
+  destination_queue_name,
   deps = []
 }) {
   term.clear()
@@ -50,6 +63,37 @@ export default async function ({
   term(" ")
   await term.spinner("impulse")
   term("\n\n")
+
+  const sqs_client = new SQSClient({ region: upload_env.aws_region })
+  if (destination_queue_name) {
+    try {
+      const { QueueUrl: destination_queue_url } = await sqs_client.send(
+        new GetQueueUrlCommand({ QueueName: destination_queue_name })
+      )
+
+      term(`Destination queue ${destination_queue_name} exists, deleting it\n`)
+      await sqs_client.send(
+        new DeleteQueueCommand({ QueueUrl: destination_queue_url })
+      )
+      term(`Waiting 70 seconds\n`)
+      await new Promise(function (resolve) {
+        setTimeout(resolve, 70_000)
+      })
+    } catch (e) {
+      // no problem, nothing to delete
+    }
+
+    term(`Creating destination queue ${destination_queue_name}\n`)
+    await sqs_client.send(
+      new CreateQueueCommand({
+        QueueName: destination_queue_name,
+        Attributes: {
+          VisibilityTimeout: timeout * 6,
+          FifoQueue: true
+        }
+      })
+    )
+  }
 
   const lambda_client = new LambdaClient({ region: upload_env.aws_region })
 
@@ -76,8 +120,31 @@ export default async function ({
   progress_bar.update({ progress: 0.05 })
 
   if (function_exists) {
+    term("deleting old event source mappings\n")
+    const { EventSourceMappings: previous_event_source_mappings } =
+      await lambda_client.send(
+        new ListEventSourceMappingsCommand({
+          FunctionName: function_name
+        })
+      )
+    console.log(previous_event_source_mappings)
+    for (const previous_event_source_mapping of previous_event_source_mappings) {
+      term(
+        `deleting previous event source mapping ${previous_event_source_mapping.UUID}\n`
+      )
+      await lambda_client.send(
+        new DeleteEventSourceMappingCommand({
+          UUID: previous_event_source_mapping.UUID
+        })
+      )
+      term(`Waiting 10 seconds\n`)
+      await new Promise(function (resolve) {
+        setTimeout(resolve, 10_000)
+      })
+    }
+
     term(
-      "deleting the function because we need to do that first for some reason"
+      "deleting the function because we need to do that first for some reason\n"
     )
 
     await lambda_client.send(
@@ -193,7 +260,9 @@ export default async function ({
       Environment: {
         Variables: {
           ...exe_env_map,
-          ...upload_env
+          ...upload_env,
+          ...(destination_queue_name && { destination_queue_name }),
+          ...(source_queue_name && { source_queue_name })
         }
       },
       Code: {
@@ -307,8 +376,33 @@ export default async function ({
     )
   }
   progress_bar.update({ progress: 1 })
-
+  progress_bar.stop()
+  await new Promise(function (resolve) {
+    setTimeout(resolve, 1000)
+  })
   term.clear()
+
+  if (source_queue_name) {
+    const { QueueUrl: source_queue_url } = await sqs_client.send(
+      new GetQueueUrlCommand({ QueueName: source_queue_name })
+    )
+    term(`\nsource_queue_url: ${source_queue_url}\n`)
+    const source_queue_attributes = await sqs_client.send(
+      new GetQueueAttributesCommand({
+        QueueUrl: source_queue_url,
+        AttributeNames: ["QueueArn"]
+      })
+    )
+
+    await lambda_client.send(
+      new CreateEventSourceMappingCommand({
+        BatchSize: 1,
+        EventSourceArn: source_queue_attributes.Attributes.QueueArn,
+        FunctionName: function_name
+      })
+    )
+  }
+
   term(`Uploaded `)
   term.green(function_name)
   term(".\n\n")

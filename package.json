@@ -1,6 +1,6 @@
 {
   "name": "severe-extent",
-  "version": "1.8.3",
+  "version": "1.9.0",
   "scripts": {
     "build": "npx babel src --out-dir dist && npm link && chmod +x dist/cli.js"
   },
@@ -23,6 +23,7 @@
   "dependencies": {
     "@aws-sdk/client-eventbridge": "^3.105.0",
     "@aws-sdk/client-s3": "^3.107.0",
+    "@aws-sdk/client-sqs": "^3.107.0",
     "aws-sdk": "^2.1152.0",
     "core-js": "^3.22.8",
     "dotenv": "^16.0.1",

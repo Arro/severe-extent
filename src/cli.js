@@ -99,6 +99,8 @@ if (choice.command === "upload") {
     schedule,
     role,
     layer,
+    source_queue_name,
+    destination_queue_name,
     deps
   } = func
 
@@ -117,7 +119,12 @@ if (choice.command === "upload") {
     }
     upload_env_map[key] = value
   })
+
   upload_env = upload_env_map
+
+  if (!source_queue_name && !schedule) {
+    throw new Error(`You need to specify a queue_name or schedule`)
+  }
 
   await upload({
     function_name,
@@ -132,6 +139,8 @@ if (choice.command === "upload") {
     schedule,
     role,
     layer,
+    source_queue_name,
+    destination_queue_name,
     deps
   })
   process.exit()
