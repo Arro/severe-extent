@@ -13,23 +13,23 @@
   "type": "module",
   "main": "dist/index.js",
   "devDependencies": {
-    "@babel/cli": "^7.17.10",
-    "@babel/core": "^7.18.2",
-    "@babel/eslint-parser": "^7.18.2",
-    "@babel/preset-env": "^7.18.2",
-    "eslint": "^8.17.0",
-    "prettier": "^2.6.2"
+    "@babel/cli": "^7.18.10",
+    "@babel/core": "^7.19.0",
+    "@babel/eslint-parser": "^7.18.9",
+    "@babel/preset-env": "^7.19.0",
+    "eslint": "^8.23.0",
+    "prettier": "^2.7.1"
   },
   "dependencies": {
-    "@aws-sdk/client-eventbridge": "^3.105.0",
-    "@aws-sdk/client-s3": "^3.107.0",
-    "@aws-sdk/client-sqs": "^3.107.0",
-    "aws-sdk": "^2.1152.0",
-    "core-js": "^3.22.8",
-    "dotenv": "^16.0.1",
+    "@aws-sdk/client-eventbridge": "^3.168.0",
+    "@aws-sdk/client-s3": "^3.168.0",
+    "@aws-sdk/client-sqs": "^3.168.0",
+    "aws-sdk": "^2.1213.0",
+    "core-js": "^3.25.1",
+    "dotenv": "^16.0.2",
     "fs-extra": "^10.1.0",
-    "ora": "^6.1.0",
-    "terminal-kit": "^2.4.0"
+    "ora": "^6.1.2",
+    "terminal-kit": "^2.11.3"
   },
   "peerDependencies": {
     "@babel/cli": "^7.x"

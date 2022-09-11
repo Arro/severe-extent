@@ -97,6 +97,7 @@ export default async function ({
 
   const lambda_client = new LambdaClient({ region: upload_env.aws_region })
 
+  /*
   let progress_bar = term.progressBar({
     width: 120,
     titleSize: 50,
@@ -104,6 +105,9 @@ export default async function ({
     eta: true,
     percent: true
   })
+  */
+
+  console.log("checking if lambda function exists")
 
   let function_exists
 
@@ -117,17 +121,18 @@ export default async function ({
   } catch (e) {
     function_exists = false
   }
-  progress_bar.update({ progress: 0.05 })
+  //progress_bar.update({ progress: 0.05 })
 
   if (function_exists) {
-    term("deleting old event source mappings\n")
+    console.log("deleting old event source mappings\n")
     const { EventSourceMappings: previous_event_source_mappings } =
       await lambda_client.send(
         new ListEventSourceMappingsCommand({
           FunctionName: function_name
         })
       )
-    console.log(previous_event_source_mappings)
+    term(JSON.stringify(previous_event_source_mappings, null, 2) + "\n")
+
     for (const previous_event_source_mapping of previous_event_source_mappings) {
       term(
         `deleting previous event source mapping ${previous_event_source_mapping.UUID}\n`
@@ -137,9 +142,9 @@ export default async function ({
           UUID: previous_event_source_mapping.UUID
         })
       )
-      term(`Waiting 10 seconds\n`)
+      term(`Waiting 30 seconds\n`)
       await new Promise(function (resolve) {
-        setTimeout(resolve, 10_000)
+        setTimeout(resolve, 30_000)
       })
     }
 
@@ -153,76 +158,92 @@ export default async function ({
       })
     )
   }
-  progress_bar.update({ progress: 0.1 })
+  //progress_bar.update({ progress: 0.1 })
 
   const build_path = path.join(os.tmpdir(), `${function_name}_build/`)
   const zip_filename = path.join(os.tmpdir(), `${function_name}.zip`)
 
-  progress_bar.update({ title: "cleaning up zip" })
+  //progress_bar.update({ title: "cleaning up zip" })
   await fs.remove(zip_filename)
 
-  progress_bar.update({ progress: 0.2 })
+  //progress_bar.update({ progress: 0.2 })
 
-  progress_bar.update({ title: "copying static files" })
+  //progress_bar.update({ title: "copying static files" })
+  console.log("copying static files")
   for (const static_file of statics) {
     const { base } = path.parse(static_file)
     await fs.copy(static_file, path.join(build_path, base))
   }
-  progress_bar.update({ progress: 0.25 })
+  //progress_bar.update({ progress: 0.25 })
 
   if (runtime.indexOf("node") !== -1) {
-    progress_bar.update({ progress: 0.28 })
+    //progress_bar.update({ progress: 0.28 })
     await prepareNodeLocally(
-      { build_path, src_files, deps, exe_env },
-      progress_bar
+      { build_path, src_files, deps, exe_env }
+      //progress_bar
     )
-    progress_bar?.update({ progress: 0.35 })
-    progress_bar.update({ title: "zipping up build folder" })
+    //progress_bar?.update({ progress: 0.35 })
+    //progress_bar.update({ title: "zipping up build folder" })
     await exec(`zip -r ${zip_filename} .`, {
       cwd: build_path
     })
-    progress_bar.update({ progress: 0.4 })
+    //progress_bar.update({ progress: 0.4 })
   } else if (runtime.indexOf("python") !== -1) {
     const venv_path = path.join(os.tmpdir(), `${function_name}_venv`)
-    progress_bar?.update({ title: "cleaning up old folders" })
+    //progress_bar?.update({ title: "cleaning up old folders" })
+    console.log("cleaning up old folders")
     await fs.remove(venv_path)
     await fs.remove(build_path)
 
-    progress_bar?.update({ title: `making build path at ${build_path}` })
+    //progress_bar?.update({ title: `making build path at ${build_path}` })
+    console.log(`making build path at ${build_path}`)
     await fs.mkdirp(build_path)
 
-    progress_bar.update({ progress: 0.28 })
+    //progress_bar.update({ progress: 0.28 })
     await exec(`python3 -m venv ${venv_path}`)
-    for (const [i, dep] of deps.entries()) {
+
+    //for (const [i, dep] of deps.entries()) {
+    for (const dep of deps) {
+      console.log(`installing python dep ${dep}`)
+      /*
       progress_bar.update({
         title: `installing python dep ${dep}`,
         progress: 0.25 + (i / deps.length) * 0.05
       })
-      await exec(`source ${venv_path}/bin/activate && pip3 install ${dep}`)
+      */
+      await exec(`. ./bin/activate && pip3 install ${dep}`, {
+        cwd: venv_path
+      })
     }
-    progress_bar.update({ progress: 0.3 })
+    //progress_bar.update({ progress: 0.3 })
 
-    progress_bar.update({ title: "zipping up python deps" })
+    //progress_bar.update({ title: "zipping up python deps" })
+    console.log("zipping up python deps")
     await exec(`zip -r ${zip_filename} .`, {
-      cwd: `${venv_path}/lib/python3.9/site-packages`
+      cwd: `${venv_path}/lib/python3.10/site-packages`
     })
-    progress_bar.update({ progress: 0.35 })
+    //progress_bar.update({ progress: 0.35 })
 
-    for (const [i, src_file] of src_files.entries()) {
+    //for (const [i, src_file] of src_files.entries()) {
+    for (const src_file of src_files) {
+      /*
       progress_bar.update({
         title: `adding python file ${src_file} to zip`,
         progress: 0.35 + (i / src_files.length) * 0.05
       })
+      */
+      console.log(`adding python file ${src_file} to zip`)
       await exec(`zip -g  ${zip_filename} ${src_file}.py`, {
         cwd: "./pysrc"
       })
     }
-    progress_bar.update({ progress: 0.4 })
+    //progress_bar.update({ progress: 0.4 })
   } else {
     throw new Error("Non-supported runtime")
   }
 
-  progress_bar.update({ title: "uploading zip to s3" })
+  //progress_bar.update({ title: "uploading zip to s3" })
+  console.log("uploading zip to s3")
 
   const s3_client = new S3Client({
     region: upload_env.aws_region
@@ -234,7 +255,7 @@ export default async function ({
       Body: fs.createReadStream(zip_filename)
     })
   )
-  progress_bar.update({ progress: 0.45 })
+  //progress_bar.update({ progress: 0.45 })
 
   let exe_env_map = {}
   exe_env.forEach((key) => {
@@ -245,15 +266,21 @@ export default async function ({
     exe_env_map[key] = value
   })
 
+  /*
   progress_bar.update({
     title: "creating lambda function because it doesn't exist"
   })
+  */
+  console.log("creating lambda function because it doesn't exist")
   await lambda_client.send(
     new CreateFunctionCommand({
       FunctionName: function_name,
       Runtime: runtime,
       Role: role,
-      Handler: "lambda/handler.handler",
+      Handler:
+        runtime.indexOf("node") !== -1
+          ? "lambda/handler.handler"
+          : "lambda_function.lambda_handler",
       Timeout: timeout,
       MemorySize: memory_size,
       Layers: layer ? [layer] : [],
@@ -271,30 +298,34 @@ export default async function ({
       }
     })
   )
-  progress_bar.update({ progress: 0.5 })
+  //progress_bar.update({ progress: 0.5 })
 
-  progress_bar.update({ title: "fetching lambda function info again" })
+  //progress_bar.update({ title: "fetching lambda function info again" })
+  console.log("fetching lambda function info again")
   const latest_function_info = await lambda_client.send(
     new GetFunctionCommand({
       FunctionName: function_name
     })
   )
-  progress_bar.update({ progress: 0.55 })
+  //progress_bar.update({ progress: 0.55 })
 
   const eventbridge_client = new EventBridgeClient({
     region: upload_env.aws_region
   })
 
-  progress_bar.update({ title: "removing old schedules" })
+  //progress_bar.update({ title: "removing old schedules" })
+  console.log("removing old schedules")
   let { RuleNames: old_rules } = await eventbridge_client.send(
     new ListRuleNamesByTargetCommand({
       TargetArn: latest_function_info?.Configuration?.FunctionArn
     })
   )
 
-  progress_bar.update({ progress: 0.7 })
-  for (const [i, old_rule] of old_rules.entries()) {
-    progress_bar.update({ title: `fetching old rule ${old_rule}` })
+  //progress_bar.update({ progress: 0.7 })
+  //for (const [i, old_rule] of old_rules.entries()) {
+  for (const old_rule of old_rules) {
+    //progress_bar.update({ title: `fetching old rule ${old_rule}` })
+    console.log(`fetching old rule ${old_rule}`)
     const { Targets: all_targets_of_old_rule } = await eventbridge_client.send(
       new ListTargetsByRuleCommand({
         Rule: old_rule
@@ -304,10 +335,13 @@ export default async function ({
     const targets = all_targets_of_old_rule.filter((t) => {
       return t.Arn === latest_function_info?.Configuration?.FunctionArn
     })
+    /*
     progress_bar.update({
       title: `removing old rule ${old_rule}`,
       progress: 0.7 + (i / src_files.length) * 0.1
     })
+    */
+    console.log(`removing old rule ${old_rule}`)
     eventbridge_client.send(
       new RemoveTargetsCommand({
         Ids: targets.map((t) => t.Id),
@@ -315,25 +349,29 @@ export default async function ({
       })
     )
   }
-  progress_bar.update({ progress: 0.8 })
+  //progress_bar.update({ progress: 0.8 })
 
-  for (const [i, s] of schedule.entries()) {
+  //for (const [i, s] of schedule.entries()) {
+  for (const s of schedule) {
     let expression
     let event_name
-    let one_step = 1 / schedule.length
-    let schedule_progress = i / schedule.length
+    //let one_step = 1 / schedule.length
+    //let schedule_progress = i / schedule.length
     if (s.how_often === "hourly") {
       expression = `cron(${s.at_minute} * ? * * *)`
-      event_name = `hourly_at_${s.at_minute}`
+      event_name = `${function_name}_hourly_at_${s.at_minute}`
     } else if (s.how_often === "daily") {
       expression = `cron(${s.at_minute} ${s.at_hour} ? * * *)`
-      event_name = `daily_at_${s.at_hour}_${s.at_minute}`
+      event_name = `${function_name}_daily_at_${s.at_hour}_${s.at_minute}`
     }
 
+    /*
     progress_bar.update({
       title: `adding new rule ${event_name}`,
       progress: 0.8 + schedule_progress * 0.2 + one_step * 0.3
     })
+    */
+    console.log(`adding new rule ${event_name}`)
     const new_rule = await eventbridge_client.send(
       new PutRuleCommand({
         Name: event_name,
@@ -341,10 +379,13 @@ export default async function ({
       })
     )
 
+    /*
     progress_bar.update({
       title: `granting permissions for rule ${event_name}`,
       progress: 0.8 + schedule_progress * 0.2 + one_step * 0.6
     })
+    */
+    console.log(`granting permissions for rule ${event_name}`)
     try {
       await lambda_client.send(
         new AddPermissionCommand({
@@ -359,10 +400,13 @@ export default async function ({
       // it's ok
     }
 
+    /*
     progress_bar.update({
       title: `associating rule ${event_name} with function`,
       progress: 0.8 + schedule_progress * 0.2 + one_step * 0.9
     })
+    */
+    console.log(`associating rule ${event_name} with function`)
     await eventbridge_client.send(
       new PutTargetsCommand({
         Rule: event_name,
@@ -375,8 +419,8 @@ export default async function ({
       })
     )
   }
-  progress_bar.update({ progress: 1 })
-  progress_bar.stop()
+  //progress_bar.update({ progress: 1 })
+  //progress_bar.stop()
   await new Promise(function (resolve) {
     setTimeout(resolve, 1000)
   })
