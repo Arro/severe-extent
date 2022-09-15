@@ -110,7 +110,8 @@ if (choice.command === "upload") {
     "aws_access_key_id",
     "aws_secret_access_key",
     "aws_region",
-    "aws_s3_bucket"
+    "aws_s3_bucket",
+    "aws_s3_bucket_region"
   ]
   upload_env.forEach((key) => {
     const value = process.env?.[key]
@@ -156,7 +157,8 @@ if (choice.command === "info") {
     "aws_access_key_id",
     "aws_secret_access_key",
     "aws_region",
-    "aws_s3_bucket"
+    "aws_s3_bucket",
+    "aws_s3_bucket_region"
   ]
 
   let upload_env_map = {}
@@ -178,7 +180,8 @@ if (choice.command === "invoke") {
     "aws_access_key_id",
     "aws_secret_access_key",
     "aws_region",
-    "aws_s3_bucket"
+    "aws_s3_bucket",
+    "aws_s3_bucket_region"
   ]
 
   let upload_env_map = {}
@@ -214,7 +217,8 @@ if (choice.command === "remove") {
     "aws_access_key_id",
     "aws_secret_access_key",
     "aws_region",
-    "aws_s3_bucket"
+    "aws_s3_bucket",
+    "aws_s3_bucket_region"
   ]
 
   let upload_env_map = {}

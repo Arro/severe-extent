@@ -36,6 +36,7 @@ import {
 import fs from "fs-extra"
 import terminalKit from "terminal-kit"
 
+import copyStaticFiles from "./copy-static-files.js"
 import prepareNodeLocally from "./prepare-node-locally.js"
 
 const term = terminalKit.terminal
@@ -168,20 +169,14 @@ export default async function ({
 
   //progress_bar.update({ progress: 0.2 })
 
-  //progress_bar.update({ title: "copying static files" })
-  console.log("copying static files")
-  for (const static_file of statics) {
-    const { base } = path.parse(static_file)
-    await fs.copy(static_file, path.join(build_path, base))
-  }
-  //progress_bar.update({ progress: 0.25 })
-
   if (runtime.indexOf("node") !== -1) {
     //progress_bar.update({ progress: 0.28 })
     await prepareNodeLocally(
       { build_path, src_files, deps, exe_env }
       //progress_bar
     )
+    await copyStaticFiles(statics, build_path)
+
     //progress_bar?.update({ progress: 0.35 })
     //progress_bar.update({ title: "zipping up build folder" })
     await exec(`zip -r ${zip_filename} .`, {
@@ -216,6 +211,7 @@ export default async function ({
       })
     }
     //progress_bar.update({ progress: 0.3 })
+    await copyStaticFiles(statics, build_path)
 
     //progress_bar.update({ title: "zipping up python deps" })
     console.log("zipping up python deps")
@@ -244,9 +240,10 @@ export default async function ({
 
   //progress_bar.update({ title: "uploading zip to s3" })
   console.log("uploading zip to s3")
+  console.log(`s3 bucket region is: ${upload_env.aws_s3_bucket_region}`)
 
   const s3_client = new S3Client({
-    region: upload_env.aws_region
+    region: upload_env.aws_s3_bucket_region
   })
   await s3_client.send(
     new PutObjectCommand({
