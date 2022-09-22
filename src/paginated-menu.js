@@ -11,6 +11,7 @@ const menu_key_bindings = {
 
 term.on("key", function (name) {
   if (name === "CTRL_C") {
+    term.clear()
     process.exit()
   }
 })

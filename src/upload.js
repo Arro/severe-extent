@@ -56,49 +56,57 @@ export default async function ({
   layer,
   source_queue_name,
   destination_queue_name,
-  deps = []
+  deps = [],
+  build_local
 }) {
   term.clear()
-  term("Uploading lambda function ")
+  if (build_local) {
+    term("Building lambda function locally ")
+  } else {
+    term("Uploading lambda function ")
+  }
   term.green(function_name)
   term(" ")
   await term.spinner("impulse")
   term("\n\n")
 
+  const lambda_client = new LambdaClient({ region: upload_env.aws_region })
   const sqs_client = new SQSClient({ region: upload_env.aws_region })
-  if (destination_queue_name) {
-    try {
-      const { QueueUrl: destination_queue_url } = await sqs_client.send(
-        new GetQueueUrlCommand({ QueueName: destination_queue_name })
-      )
 
-      term(`Destination queue ${destination_queue_name} exists, deleting it\n`)
+  if (!build_local) {
+    if (destination_queue_name) {
+      try {
+        const { QueueUrl: destination_queue_url } = await sqs_client.send(
+          new GetQueueUrlCommand({ QueueName: destination_queue_name })
+        )
+
+        term(
+          `Destination queue ${destination_queue_name} exists, deleting it\n`
+        )
+        await sqs_client.send(
+          new DeleteQueueCommand({ QueueUrl: destination_queue_url })
+        )
+        term(`Waiting 70 seconds\n`)
+        await new Promise(function (resolve) {
+          setTimeout(resolve, 70_000)
+        })
+      } catch (e) {
+        // no problem, nothing to delete
+      }
+
+      term(`Creating destination queue ${destination_queue_name}\n`)
       await sqs_client.send(
-        new DeleteQueueCommand({ QueueUrl: destination_queue_url })
+        new CreateQueueCommand({
+          QueueName: destination_queue_name,
+          Attributes: {
+            VisibilityTimeout: timeout * 6,
+            FifoQueue: true
+          }
+        })
       )
-      term(`Waiting 70 seconds\n`)
-      await new Promise(function (resolve) {
-        setTimeout(resolve, 70_000)
-      })
-    } catch (e) {
-      // no problem, nothing to delete
     }
 
-    term(`Creating destination queue ${destination_queue_name}\n`)
-    await sqs_client.send(
-      new CreateQueueCommand({
-        QueueName: destination_queue_name,
-        Attributes: {
-          VisibilityTimeout: timeout * 6,
-          FifoQueue: true
-        }
-      })
-    )
-  }
-
-  const lambda_client = new LambdaClient({ region: upload_env.aws_region })
-
-  /*
+    /*
   let progress_bar = term.progressBar({
     width: 120,
     titleSize: 50,
@@ -108,56 +116,57 @@ export default async function ({
   })
   */
 
-  console.log("checking if lambda function exists")
+    console.log("checking if lambda function exists")
 
-  let function_exists
+    let function_exists
 
-  try {
-    await lambda_client.send(
-      new GetFunctionCommand({
-        FunctionName: function_name
-      })
-    )
-    function_exists = true
-  } catch (e) {
-    function_exists = false
-  }
-  //progress_bar.update({ progress: 0.05 })
-
-  if (function_exists) {
-    console.log("deleting old event source mappings\n")
-    const { EventSourceMappings: previous_event_source_mappings } =
+    try {
       await lambda_client.send(
-        new ListEventSourceMappingsCommand({
+        new GetFunctionCommand({
           FunctionName: function_name
         })
       )
-    term(JSON.stringify(previous_event_source_mappings, null, 2) + "\n")
+      function_exists = true
+    } catch (e) {
+      function_exists = false
+    }
+    //progress_bar.update({ progress: 0.05 })
 
-    for (const previous_event_source_mapping of previous_event_source_mappings) {
+    if (function_exists) {
+      console.log("deleting old event source mappings\n")
+      const { EventSourceMappings: previous_event_source_mappings } =
+        await lambda_client.send(
+          new ListEventSourceMappingsCommand({
+            FunctionName: function_name
+          })
+        )
+      term(JSON.stringify(previous_event_source_mappings, null, 2) + "\n")
+
+      for (const previous_event_source_mapping of previous_event_source_mappings) {
+        term(
+          `deleting previous event source mapping ${previous_event_source_mapping.UUID}\n`
+        )
+        await lambda_client.send(
+          new DeleteEventSourceMappingCommand({
+            UUID: previous_event_source_mapping.UUID
+          })
+        )
+        term(`Waiting 30 seconds\n`)
+        await new Promise(function (resolve) {
+          setTimeout(resolve, 30_000)
+        })
+      }
+
       term(
-        `deleting previous event source mapping ${previous_event_source_mapping.UUID}\n`
+        "deleting the function because we need to do that first for some reason\n"
       )
+
       await lambda_client.send(
-        new DeleteEventSourceMappingCommand({
-          UUID: previous_event_source_mapping.UUID
+        new DeleteFunctionCommand({
+          FunctionName: function_name
         })
       )
-      term(`Waiting 30 seconds\n`)
-      await new Promise(function (resolve) {
-        setTimeout(resolve, 30_000)
-      })
     }
-
-    term(
-      "deleting the function because we need to do that first for some reason\n"
-    )
-
-    await lambda_client.send(
-      new DeleteFunctionCommand({
-        FunctionName: function_name
-      })
-    )
   }
   //progress_bar.update({ progress: 0.1 })
 
@@ -236,6 +245,27 @@ export default async function ({
     //progress_bar.update({ progress: 0.4 })
   } else {
     throw new Error("Non-supported runtime")
+  }
+  if (build_local) {
+    await fs.mkdirp("./build")
+    const local_build_path = `./build/${function_name}`
+    await fs.remove(local_build_path)
+
+    if (runtime.indexOf("python") !== -1) {
+      // copy tox.ini to the local build folder
+      const tox_exists = await fs.exists("./pysrc/tox.ini")
+      console.log("tox exists", tox_exists)
+      if (tox_exists) {
+        await fs.copy("./pysrc/tox.ini", path.join(local_build_path, "tox.ini"))
+      }
+    }
+
+    await exec(`unzip ${zip_filename} -d ${local_build_path}`)
+    await fs.copy("./.env", `${local_build_path}/.env`)
+    term(`Built function locally `)
+    term.green(function_name)
+    term(".\n\n")
+    return
   }
 
   //progress_bar.update({ title: "uploading zip to s3" })

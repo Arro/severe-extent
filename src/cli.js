@@ -54,6 +54,10 @@ const menu_items = [
   {
     name: "Run a lambda handler, but locally",
     command: "run_local"
+  },
+  {
+    name: "Build a lambda handler locally",
+    command: "build_local"
   }
 ]
 
@@ -81,12 +85,16 @@ term("\n\n")
 await term(`What lambda function?`)
 term("\n")
 
-const func = await paginatedMenu(
-  Object.values(json.default),
-  (f) => f.function_name
-)
+let functions = Object.values(json.default)
 
-if (choice.command === "upload") {
+// functions triggered by SQS are not directly invokable
+if (choice.command === "invoke") {
+  functions = functions.filter((f) => !f.source_queue_name)
+}
+
+const func = await paginatedMenu(functions, (f) => f.function_name)
+
+if (choice.command === "upload" || choice.command === "build_local") {
   let {
     function_name,
     src_files,
@@ -142,7 +150,8 @@ if (choice.command === "upload") {
     layer,
     source_queue_name,
     destination_queue_name,
-    deps
+    deps,
+    build_local: choice.command === "build_local"
   })
   process.exit()
 }
