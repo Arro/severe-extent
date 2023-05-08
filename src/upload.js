@@ -194,6 +194,7 @@ export default async function ({
     //progress_bar.update({ progress: 0.4 })
   } else if (runtime.indexOf("python") !== -1) {
     const venv_path = path.join(os.tmpdir(), `${function_name}_venv`)
+    console.log(`venv_path: ${venv_path}`)
     //progress_bar?.update({ title: "cleaning up old folders" })
     console.log("cleaning up old folders")
     await fs.remove(venv_path)
@@ -224,9 +225,11 @@ export default async function ({
 
     //progress_bar.update({ title: "zipping up python deps" })
     console.log("zipping up python deps")
+    console.log(`cwd: ${venv_path}/lib/python3.11/site-packages`)
     await exec(`zip -r ${zip_filename} .`, {
-      cwd: `${venv_path}/lib/python3.10/site-packages`
+      cwd: `${venv_path}/lib/python3.11/site-packages`
     })
+
     //progress_bar.update({ progress: 0.35 })
 
     //for (const [i, src_file] of src_files.entries()) {
@@ -260,7 +263,9 @@ export default async function ({
       }
     }
 
-    await exec(`unzip ${zip_filename} -d ${local_build_path}`)
+    await exec(`unzip ${zip_filename} -d ${local_build_path}`, {
+      maxBuffer: 1024 * 10000
+    })
     await fs.copy("./.env", `${local_build_path}/.env`)
     term(`Built function locally `)
     term.green(function_name)

@@ -14,7 +14,7 @@ export default async function ({
   deps,
   exe_env
 }) {
-  if (runtime !== "nodejs14.x") {
+  if (!["nodejs14.x", "nodejs16.x"].includes(runtime)) {
     term.clear()
     term("Local run of runtime ")
     term.yellow(runtime)
